@@ -1,0 +1,207 @@
+
+
+
+Pin Status prüfen:	AT+CPIN?
+	Rückgabe:
+		SIM PIN --> wartet auf PIN
+		SIM PUK --> wartet auf PUK
+		READY 	-->  bereit
+
+pin eingeben: 		AT+CPIN="pin"
+Pin deaktivieren:	AT+CLCK="SC",0,"aktuelle pin"
+Pin ändern:			AT+CPIN="PUK","NEUE-PIN"
+
+
+Kommando			Zweck
+AT+CGMI				Herstellerkennung ausgeben
+AT+CGMM				Modellkennung ausgeben
+AT+CGMR				Versionsnummer anzeigen
+AT+CGSN				Seriennummer (IMEI) anz.
+AT+CHUP				Ruf beenden
+AT+CEER				Disconnect-Grund anzeigen
+AT+CREG?			Gerät eingebucht? (0,1=ja)
+AT+COPS?			Anzeige des Netznamens
+AT+CPIN="xxxx"		Eingabe der PIN xxxx
+AT+CSQ				Feldstärke+Bitfehlerrate anz.
+
+
+AT+CMGS="+491622490640",145<CR>Das hier sendet eine SMS an Vitaly Ruhl<Ctrl+z>
+
+
+
+######################################################################################################################################################################################################
+https://www.shamrock.de/dfu/dfu7.htm
+
+SMS mit GSM-Gerät senden/empfangen
+Für das Senden und Empfangen von SMS-Nachrichten über die Datenschnittstelle von GSM-Geräten gibt es ähnlich wie zur Datenübertragung eine Reihe von AT-Befehlen. Typische sind:
+
+AT+CMGF=1: SMS-Ein-/Ausgabe mit 7-Bit-Klartext
+AT+CMGS="nnnn"^MTest^Z: Text 'Test' an Nr. nnnn ( ^M=Return, ^Z=Ctrl-Z)
+AT+CNMI?: Anzeige, Nachr. empfangen wurden
+AT+CMGR=x: SMS aus Speicherplatz x auslesen
+AT+CMGD=x: SMS in Speicherplatz x löschen
+AT+CSCA="+4917...": Nummer des SMS-Center einstellen
+
+Der erste Befehl ist besonders wichtig, da andernfalls die Ein-/Ausgabe im PDU-Modus erfolgt (physical data unit), bei dem 7-Bit-Zeichen in einen 8-Bit-Datenstrom gepackt werden, was zu völlig unlesbaren Ergebnissen führt. Allerdings unterstützen nicht alle Geräte den 7-Bit-Klartext-Modus. Herstellerspezifische Binärdaten wie Logo-Bilder und Klingeltöne müssen dagegen im PDU-Modus (8 Bit) gesendet werden.
+
+Beim Empfang einer SMS-Nachricht gibt das Endgerät gewöhnlich die Meldung +CMTI:"SM",x aus, wobei die Speicherplatz-Nummer x wiederum mit AT+CMGR=x zum Auslesen benutzt werden kann.
+
+
+######################################################################################################################################################################################################
+http://www.nobbi.com/atgsm.html#+cops 		
+Call Control
+
+ATD...;			Eine Voicerufnummer wählen
+AT+CHUP			Auflegen
+AT+CRC			'Cellular result codes' (erweitertes Format der RING-Meldung) Ein/Ausschalten
+AT+CVIB			den Vibrator aktivieren/deaktivieren/abfragen
+
+
+Telefon- und Geräteinformation
+
+AT+CBC			Batterieladestatus abfragen
+AT+CCLK			Uhrzeit abfragen und setzen
+AT+CGMI			Abfrage der Herstellerinformation
+AT+CGMM			Abfrage der Modellinformation
+AT+CGMR			Abfrage der Revisionsinformation
+AT+CGSN			Abfrage der Seriennummer
+AT+CIMI			Abfrage der IMSI des eingelegten SIM
+AT+GCAP			Abfrage der implementierten Features
+
+
+
+Netzwerkzugriff
+
+AT+COPS			Ein-, Aus- und Herumbuchen in allen erreichbaren Netzen
+AT+CREG			Abfrage des Netzwerkstatus des Telefons
+AT+CSQ			Signal Quality und Empfangspegel abfragen
+AT+CLCK			Setzen, Löschen und Abfragen von Sperren
+AT+CBST			Dienstauswahl für den nächsten Datenanruf
+
+
+Nachrichten
+
+AT+CMGF			Abfragen/Setzen des Formats für ein- und ausgehende Nachrichten
+AT+CSCS			Abfrage/Setzen des verwendeten Zeichensatzes
+AT+CPMS			Abfragen/Setzen des verwendeten Nachrichtenspeichers
+AT+CMGD			Löschen von Kurznachrichten
+AT+CMGS			PDU-Mode: Versenden von Kurznachrichten
+AT+CMGW			PDU-Mode: Speichern von Kurznachrichten
+AT+CMGL			PDU-Mode: Auslesen von Kurznachrichten nach Status
+AT+CMGR			PDU-Mode: Auslesen von Kurznachrichten nach Speicherplatz
+AT+CNMI			Konfiguration des Nachrichtenroutings/der Anzeige von neuen Nachrichten
+AT+CSCB			Empfangen von CellBroadcast-Nachrichten
+AT+CMMS			Den Datenkanal für weitere Nachrichten offenhalten
+
+
+
+Telefonbuch
+
+AT+CPBS			Auswählen eines Telefonbuchspeichers
+AT+CPBR			Lesen der Telefonbucheinträge
+AT+CPBW			Schreiben der Telefonbucheinträge
+
+
+######################################################################################################################################################################################################
+ 	
+
+
+at+cscs Abfrage/Setzen des verwendeten Zeichensatzes
++cscs=?	Abfragen der vom Endgerät unterstützten Zeichensätze. Es bedeuten:
+GSM	der in TS GSM 03.38/6.2.1 definierte 7Bit-Zeichensatz. Die Spezifikation bemerkt zu dieser Einstellung: this setting causes easily software flow control (XON/XOFF) problems. Dem wäre nichts hinzuzufügen...
+HEX	nur Hexadezimale Zeichen
+IRA	das 'international reference alphabet' gem. ITU-T T.50
+PCCPxxx	PC-Zeichensatz aus Codepage xxx
+PCDN	PC-Zeichensatz Dänisch/Norwegisch
+UCS2	Unicode gem. ISO/IEC10646
+8859-x	ISO 8859 Latin x (x : 1..6)
+8859-C	ISO 8859 Latin/Cyrillic
+8859-A	ISO 8859 Latin/Arabic
+8859-G	ISO 8859 Latin/Greek
+8859-H	ISO 8859 Latin/Hebrew
+
+
+######################################################################################################################################################################################################
+ 	
+Mailbox deaktivieren im Netz von O2, Telekom und Vodafone
+
+O2-Mailbox ausschalten mit dem Handy-Code: ##002#
+Telekom-Mailbox ausschalten mit dem Handy-Code: ##002#
+Vodafone-Mailbox ausschalten mit dem Handy-Code: 5500, danach 272#
+
+
+
+######################################################################################################################################################################################################
+atd...;Eine Rufnummer wählen
+atd<x>[i][;]	Baut eine CSD- oder Sprachverbindung zu der angegebenen Nummer <x> mit dem durch AT+CBST ausgewählten Dienst auf. Gültige Zeichen für den Wählstring sind: 1 2 3 4 5 6 7 8 9 0 * # + A B C.
+Optional: ein i steuert CLIR, I f�r CLIR ein, i f�r CLIR aus.
+Optional: Das Semikolon am Ende baut explizit eine Sprachverbindung auf.
+atds<s>;	wie oben, wählt aber für ein s von 1 bis 9 eine Telefonnummer aus den Telefonbuchspeichern 1 bis 9
+atdl	wählt die letzte gewählte Rufnummer noch einmal
+atd*x#	Baut die Verbindung mit einem paketbasierten Datendienst auf. Dabei adressiert 99 den "packet domain service" und 98 "GPRS with IP". Alle weiteren Verbindungsparameter m�ssen dabei bereits im Endgerät konfiguriert sein
+
+
+######################################################################################################################################################################################################
+
+at+creg Abfrage des Netzwerkstatus des Telefons
+at+creg=n	
+n T> erzeugt einen der nachgenannten Effekte:
+
+0	keine Meldungen bei Änderung des Netzwerkstatus oder der Einbuchung (default)
+1	Meldung bei Änderung des Netzwerkstatus in der Form +CREG: x
+2	Meldung bei Änderung des Netzwerkstatus oder der aktuell gewählten Zelle in der Form +CREG: x,la,ci
+S10 : nicht implementiert
+at+creg?	
+gibt den Wert von n und den aktuellen Netzwerkstatus sowie bei Status 1 oder 5 Informationen zur aktuell gewählten Zelle aus, etwa
+at+creg? +CREG: 0,1,02D0,416F bedeutet: Meldungen werden nicht ausgegeben, Status ist 1, eingebucht im Heimatnetz in LA 02D0, dort aktuell gewählte Zelle 416F. Als Status wird zurückgemeldet:
+
+0	nicht eingebucht, keine Netzsuche
+1	eingebucht, Heimatnetz
+2	nicht eingebucht, Netzsuche
+3	nicht eingebucht, Einbuchung abgelehnt
+4	Status unbekannt
+5	eingebucht, Fremdnetz
+
+
+
+######################################################################################################################################################################################################
+
+
+at+csq Signal Quality abfragen
++csq: a,b	
+a ist der momentane Empfangspegel in folgenden Stufen:
+
+0	-113dBm oder schlechter
+1	-111dBm
+2...30	-109dBm bis -53dBm
+31	-51dBm oder besser
+99	nicht lesbar / unbekannt
+b ist RXQUAL wie in 3GPP 45.008, wobei RXQUAL natürlich nur während einer Verbindung gelesen werden kann. Im idle mode gibt das Telefon 99 zurück.
+
+Auch hier ist der Bereich der Interpretation der TS GSM weit und unerwartet:
+
+Hersteller	Werte für a	Werte gem. GSM 05.08
+Siemens	0 - 31	JA
+Ericsson	0 - 31	JA
+Nokia	0,8,16,24,31	NEIN
+
+
+######################################################################################################################################################################################################
+
+
+
+
+
+######################################################################################################################################################################################################
+
+
+
+
+
+######################################################################################################################################################################################################
+
+
+
+
+
+######################################################################################################################################################################################################

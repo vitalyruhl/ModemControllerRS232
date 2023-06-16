@@ -1,0 +1,176 @@
+; Windows Modem Setup File
+; Copyright (c) 1999 Microsoft Corporation
+; Manufacturer: Cinterion Wireless Modules GmbH, 19 August 2008
+; Supports Windows 2000, Windows XP and  Windows Vista (32 bit and 64 bit)
+;------------------------------------------------------------------------------
+[Strings]
+CINTERION  = "Cinterion Wireless Modules GmbH"
+Modem1   = "EGS5 Modem (GPRS)"
+Modem2   = "EGS5 9600 bps Modem (ISDN V.110)"
+Modem3   = "EGS5 9600 bps Modem (Analog V.32)"
+Modem4   = "EGS5 14400 bps Modem (Analog V.34)"
+Modem5   = "EGS5 14400 bps Modem (ISDN V.110)"
+;------------------------------------------------------------------------------
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=Modem
+ClassGUID={4D36E96D-E325-11CE-BFC1-08002BE10318}
+Provider=%CINTERION%
+DriverVer=08/19/2008,5.2.0000.0
+
+[Manufacturer]
+%CINTERION% = CINTERION,NTamd64
+
+
+[CINTERION]
+%Modem1% = Modem1, SIA0002   ; "EGS5 Modem (GPRS)"
+%Modem2% = Modem2, SIA0002   ; "EGS5 9600 bps Modem (ISDN V.110)"
+%Modem3% = Modem3, SIA0002   ; "EGS5 9600 bps Modem (Analog V.32)"
+%Modem4% = Modem4, SIA0002   ; "EGS5 14400 bps Modem (Analog V.34)"
+%Modem5% = Modem5, SIA0002   ; "EGS5 14400 bps Modem (ISDN V.110)"
+
+[CINTERION.NTamd64]
+%Modem1% = Modem1, SIA0002   ; "EGS5 Modem (GPRS)"
+%Modem2% = Modem2, SIA0002   ; "EGS5 9600 bps Modem (ISDN V.110)"
+%Modem3% = Modem3, SIA0002   ; "EGS5 9600 bps Modem (Analog V.32)"
+%Modem4% = Modem4, SIA0002   ; "EGS5 14400 bps Modem (Analog V.34)"
+%Modem5% = Modem5, SIA0002   ; "EGS5 14400 bps Modem (ISDN V.110)"
+
+
+
+[Modem1.NT]
+AddReg=All, W2KPat.AddReg, MfgAttReg, External, VerboseResultCodes, CINTERION2.AddReg, ModemSV.AddReg
+
+[Modem1]
+AddReg=All, MfgAttReg, External, VerboseResultCodes, CINTERION2.AddReg, ModemSV.AddReg
+
+[Modem2]
+AddReg=All, MfgAttReg1, External, VerboseResultCodes, CINTERION2.AddReg, ModemSV.AddReg
+
+[Modem3]
+AddReg=All, MfgAttReg2, External, VerboseResultCodes, CINTERION2.AddReg, ModemSV.AddReg
+
+[Modem4]
+AddReg=All, MfgAttReg3, External, VerboseResultCodes, CINTERION2.AddReg, ModemSV.AddReg
+
+[Modem5]
+AddReg=All, MfgAttReg4, External, VerboseResultCodes, CINTERION2.AddReg, ModemSV.AddReg
+
+[All]
+HKR,,FriendlyDriver,,unimodem.vxd
+HKR,,DevLoader,,*vcomm
+HKR,,PortSubClass,1,02
+HKR,,ConfigDialog,,modemui.dll
+HKR,,EnumPropPages,,"modemui.dll,EnumPropPages"
+
+; HKR, <Path>, <Key>, <Format>, <Value> [,<Value>, ...]
+HKR, Init,      1,, "AT<cr>"
+HKR, Responses, "<cr><lf>OK<cr><lf>",          1, 00, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>ERROR<cr><lf>",       1, 03, 00, 00,00,00,00, 00,00,00,00
+HKR, Monitor,   1,, "ATS0=0<cr>"
+HKR, Monitor,   2,, "None"
+HKR, Hangup,    1,, "ATH<cr>"
+HKR, Answer,    1,, "ATA<cr>"
+HKR,, Reset,, "AT&F<cr>"
+HKR, Settings, Prefix,, "AT"
+HKR, Settings, Terminator,, "<cr>"
+HKR, Settings, DialPrefix,, "D"
+HKR, Settings, DialSuffix,, ""
+HKR, Settings, FlowControl_Off,,  "\Q0"
+HKR, Settings, FlowControl_Hard,, "\Q3"
+HKR, Settings, FlowControl_Soft,, "\Q1"
+HKR, Settings, CallSetupFailTimer,, "S7=<#>"
+HKR, Fax, ResetCommand,, ""
+HKR, EnableCallerID, 1,, "AT+CLIP=1<cr>"
+HKR,, VariableTerminator,,<cr><lf>
+
+[MfgAttReg]
+HKR, Init,      2,, "ATE0<cr>"
+
+[MfgAttReg1]
+HKR, Init,      2,, "ATE0+CBST=71<cr>"
+
+[MfgAttReg2]
+HKR, Init,      2,, "ATE0+CBST=7<cr>"
+
+[MfgAttReg3]
+HKR, Init,      2,, "ATE0+CBST=14<cr>"
+
+[MfgAttReg4]
+HKR, Init,      2,, "ATE0+CBST=75<cr>"
+
+[External]
+HKR,,DeviceType,1,01
+
+[VerboseResultCodes]
+HKR, Responses, "<cr><lf>OK<cr><lf>",          1, 00, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>RING<cr><lf>",        1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>NO CARRIER<cr><lf>",  1, 04, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>ERROR<cr><lf>",       1, 03, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>NO DIALTONE<cr><lf>", 1, 05, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>BUSY<cr><lf>",        1, 06, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>NO ANSWER<cr><lf>",   1, 07, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT<cr><lf>",     1, 02, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "0<cr>", 1, 00, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "1<cr>", 1, 02, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "2<cr>", 1, 08, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "3<cr>", 1, 04, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "4<cr>", 1, 03, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "6<cr>", 1, 05, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "7<cr>", 1, 06, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "8<cr>", 1, 07, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "10<cr>", 1, 02, 00, 60,09,00,00, 00,00,00,00
+HKR, Responses, "30<cr>", 1, 02, 00, C0,12,00,00, 00,00,00,00
+HKR, Responses, "32<cr>", 1, 02, 00, 80,25,00,00, 00,00,00,00
+HKR, Responses, "47<cr>", 1, 02, 00, 60,09,00,00, 00,00,00,00
+HKR, Responses, "48<cr>", 1, 02, 00, C0,12,00,00, 00,00,00,00
+HKR, Responses, "49<cr>", 1, 02, 00, 80,25,00,00, 00,00,00,00
+HKR, Responses, "33<cr>", 1, 02, 00, 40,38,00,00, 00,00,00,00
+HKR, Responses, "50<cr>", 1, 02, 00, 40,38,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT<cr><lf>",         1, 02, 00, 00,00,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 2400<cr><lf>",    1, 02, 00, 60,09,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 4800<cr><lf>",    1, 02, 00, C0,12,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 9600<cr><lf>",    1, 02, 00, 80,25,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 14400<cr><lf>",   1, 02, 00, 40,38,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 16800<cr><lf>",   1, 02, 00, A0,41,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 19200<cr><lf>",   1, 02, 00, 00,4B,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 21600<cr><lf>",   1, 02, 00, 60,54,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 24000<cr><lf>",   1, 02, 00, C0,5D,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 26400<cr><lf>",   1, 02, 00, 20,67,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 28800<cr><lf>",   1, 02, 00, 80,70,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 38400<cr><lf>",   1, 02, 00, 00,96,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 57600<cr><lf>",   1, 02, 00, 00,E1,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 115200<cr><lf>",  1, 02, 00, 00,C2,01,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 2400/RLP<cr><lf>",    1, 02, 00, 60,09,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 4800/RLP<cr><lf>",    1, 02, 00, C0,12,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 9600/RLP<cr><lf>",    1, 02, 00, 80,25,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 14400/RLP<cr><lf>",   1, 02, 00, 40,38,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 16800/RLP<cr><lf>",   1, 02, 00, A0,41,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 19200/RLP<cr><lf>",   1, 02, 00, 00,4B,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 21600/RLP<cr><lf>",   1, 02, 00, 60,54,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 24000/RLP<cr><lf>",   1, 02, 00, C0,5D,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 26400/RLP<cr><lf>",   1, 02, 00, 20,67,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 28800/RLP<cr><lf>",   1, 02, 00, 80,70,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 38400/RLP<cr><lf>",   1, 02, 00, 00,96,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 57600/RLP<cr><lf>",   1, 02, 00, 00,E1,00,00, 00,00,00,00
+HKR, Responses, "<cr><lf>CONNECT 115200/RLP<cr><lf>",  1, 02, 00, 00,C2,01,00, 00,00,00,00
+
+[CINTERION2.AddReg]
+;                    DIAL         CALLSET TMO  INACT TMO    SPKR VOL     SPKR MODE    OPTIONS      MAX DTE      MAX DCE
+HKR,, Properties, 1, 00,00,00,00, 3C,00,00,00, 00,00,00,00, 00,00,00,00, 00,00,00,00, 30,00,00,00, 00,08,07,00, 00,08,07,00
+HKR,, ConfigDelay, 1, b8,0b,00,00
+HKR,, DCB, 1, 1C,00,00,00, 00,08,07,00, 15,20,00,00, 00,00, 0a,00, 0a,00, 08, 00, 00, 11, 13, 00, 00, 00
+HKR,, PortSubClass, 1, 02
+
+[ModemSV.AddReg]
+HKR, Fax, ResetCommand,, ""
+HKR, Fax, SetupCommand,, ""
+HKR,, FClass, 1, 0B,00,00,00
+HKR, Fax, Class1DTESpeed,, "AUTO"
+HKR, Fax, FixModemClass,, "2"
+HKR, Fax, FixSerialSpeed,, "19200"
+
+[W2KPat.AddReg]
+HKLM,"SYSTEM\CurrentControlSet\Services\RasMan\PPP",MaxConfigure,0x00010001,50
+HKR, Settings, DialSuffix,, ";"
