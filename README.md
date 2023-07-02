@@ -14,7 +14,7 @@ I wrote the program because Windows 7 no longer has HyperTerminal. I needed a te
 
 Lately, I have only updated it to newer .NET Frameworks. (Don't touch a running system :-) )
 
-the .7z file contains the runnig Program and my Presets. You don't need to install anything. Just extract the .7z file and run the ModemController.exe file.
+The .7z file contains the running Program and my Presets. You don't need to install anything. Just extract the .7z file and run the ModemController.exe file.
 
 <br>
 <br>
