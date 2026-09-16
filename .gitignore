@@ -397,3 +397,11 @@ FodyWeavers.xsd
 # JetBrains Rider
 *.sln.iml
 Infos/*
+
+# Share agent project settings only; keep generated and machine-local state local.
+/.serena/*
+!/.serena/.gitignore
+!/.serena/project.yml
+/.projectatlas/*
+!/.projectatlas/config.toml
+!/.projectatlas/projectatlas-nonsource-files.toon
