@@ -1,65 +1,66 @@
 # ModemControllerRS232
 
-<!-- markdownlint-disable MD033 -->
-<!-- markdownlint-disable MD001 -->
-<!-- markdownlint-disable MD013 -->
-<!-- markdownlint-disable MD025 -->
-<!-- markdownlint-disable MD026 -->
+A Windows modem terminal being prepared for a Python rewrite with PySide6 and
+pySerial. The repository currently contains an **empty application scaffold**
+and the preserved VB.NET application. The Python application is not runnable yet.
 
-This small program is used to control a modem via RS232. It is written in VB.NET and uses the .NET Framework 4. It is a Windows Forms application.
+Read the [upgrade proposal](docs/upgrade.md) for the agreed requirements,
+technology choices, connection search, terminal behavior, and validation plan.
 
-You can write AT commands to the modem and read the response directly in the Terminal field. You can also save the commands to a file.
+## Repository layout
 
-I wrote the program because Windows 7 no longer has HyperTerminal. I needed a terminal to control a modem via RS232.
+```text
+.
+|-- .Old_Version/            Preserved VB.NET sources and released applications
+|-- docs/
+|   |-- upgrade.md           Rewrite requirements and proposed implementation
+|   |-- Infos/              Existing modem manuals, notes, and driver references
+|   |-- images/             Legacy screenshots
+|   `-- legacy/README.md     Original project description
+|-- src/modem_controller/
+|   |-- app.py              Future application composition
+|   |-- ui/                 Desktop views and user interaction
+|   |-- transport/          Serial-port access and byte capture
+|   |-- protocol/           Response framing and AT session processing
+|   |-- catalog/            Commands, profiles, persistence, and legacy import
+|   `-- workflows/          Connection search and diagnostic sequences
+|-- tests/                  Reserved unit and integration test directories
+|-- tools/                  Reserved development and packaging utilities
+`-- pyproject.toml          Initial Python package metadata
+```
 
-Lately, I have only updated it to newer .NET Frameworks. (Don't touch a running system :-) )
+Every Python file is deliberately empty. Runtime dependencies, a Python version
+baseline, executable entry points, GUI behavior, and hardware access have not been
+implemented or validated. Version `0.0.0` is a scaffold marker, not a release.
 
-The .7z file contains the running Program and my Presets. You don't need to install anything. Just extract the .7z file and run the ModemController.exe file.
+The planned target is Windows 10 20H2 x64 and newer. Confirm and pin compatible
+Python, Qt/PySide6, pySerial, and packaging versions before implementation.
 
-<br>
-<br>
+## Existing application
 
----
+The previous source tree and releases remain under [.Old_Version](.Old_Version/).
+The original portable archive is
+[ModemController_V1.5.0.10.7z](.Old_Version/ModemController_V1.5.0.10.7z).
+See the [legacy description](docs/legacy/README.md) and
+[documentation index](docs/README.md) for reference material.
 
-## Screenshots
+Keep legacy sources and releases as migration references. Their runtime behavior
+has not been retested after the directory move. Shortcuts containing absolute
+paths may need local adjustment.
 
-![Screenshot 1](Infos/Screenshots/Screenshot_1.jpg)
-![Screenshot 2](Screenshot_2.jpg)
-![Screenshot 3](Screenshot_3.jpg)
+## Development boundaries
 
-<br>
-<br>
+Keep GUI code separate from serial transport, protocol processing, catalog data,
+and workflow orchestration. The [documentation index](docs/README.md) explains
+the reserved modules and test areas.
 
----
+Project-specific governance will be added separately. The supplied governance
+example from another repository informed the separation of responsibilities only;
+it has not been adopted as this repository's governance.
 
-## Donate
+Only shared Serena and ProjectAtlas configuration is versioned. Their databases,
+caches, local overrides, and generated machine-specific launcher files stay local.
 
-<table align="center" width="100%" border="0" bgcolor:=#3f3f3f>
-<tr align="center">
-<td align="center">  
-if you prefer a one-time donation
+## License
 
-[![donate-Paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://paypal.me/FamilieRuhl)
-
-</td>
-
-<td align="center">  
-Become a patron, by simply clicking on this button (**very appreciated!**):
-
-[![Become a patron](https://c5.patreon.com/external/logo/become_a_patron_button.png)](https://www.patreon.com/join/6555448/checkout?ru=undefined)
-
-</td>
-</tr>
-</table>
-
-<br>
-<br>
-
----
-
-## Copyright
-
-`2013-2023 (c)Vitaly Ruhl`
-
-License: GNU General Public License v3.0
-
+GNU General Public License v3.0. See [LICENSE](LICENSE).

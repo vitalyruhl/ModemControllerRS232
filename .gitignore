@@ -396,7 +396,19 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
-Infos/*
+/docs/Infos/*
+
+# Python development and packaging artifacts.
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+/build/
+/dist/
+.coverage
+htmlcov/
 
 # Share agent project settings only; keep generated and machine-local state local.
 /.serena/*

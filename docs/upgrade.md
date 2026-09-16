@@ -1,6 +1,7 @@
 # Modem Controller upgrade proposal
 
-Status: agreed direction and requirements; implementation has not started.
+Status: agreed direction and requirements; empty Python scaffold created, with no
+application behavior implemented.
 Discussion date: 2026-09-16.
 Preparation branch: `docs/python-modem-upgrade-plan`.
 
@@ -13,8 +14,10 @@ Add the serial inspection and recovery functions that currently require HTerm,
 without exposing all expert controls during ordinary use.
 
 This document records the discussion for a later implementation session. This
-preparation change contains documentation and agent configuration only. It does
-not implement the application, access a serial port, or change a modem.
+preparation now includes documentation, agent configuration, an empty Python
+package scaffold, and relocation of the legacy project. It does not implement
+application behavior, access a serial port, or change a modem. See
+[the documentation index](README.md) for the current layout and migration map.
 
 ## Agreed constraints
 
@@ -82,7 +85,7 @@ checked-in source, not independently verified provenance of every shipped EXE.
 
 | Location | Observed behavior | Consequence for the rewrite |
 | --- | --- | --- |
-| `MC-Sourcecode/ModemController/MainForm.vb`, `Antwort` | Reads a line, adds newlines before and after it, then appends another blank line. | Excess spacing is partly introduced by the application, not only the modem. |
+| `.Old_Version/MC-Sourcecode/ModemController/MainForm.vb`, `Antwort` | Reads a line, adds newlines before and after it, then appends another blank line. | Excess spacing is partly introduced by the application, not only the modem. |
 | `MainForm.vb`, `SendeATBefehl` | Combines `WriteLine` with an explicit `vbNewLine`. | Define transmitted terminators once and inspect the actual bytes. |
 | `MainForm.vb`, `TimeOutAbwarten` | Runs 260,000 iterations of `Application.DoEvents`. | Replace the machine-dependent delay with explicit deadlines and response handling. |
 | `MainForm.vb`, `portsetzen` | Sets read and write timeouts to 50 ms. | Separate low-level read polling from complete command-response deadlines. |
@@ -318,7 +321,8 @@ when implementation starts.
 - [MC93 User Guide V2.7](https://mc-technologies.com/wp-content/uploads/2024/08/User-Guide-MC93-V2.7.pdf)
 - [Quectel GSM UART Application Note: autobaud behavior for covered modules](https://quectel.com/content/uploads/2021/03/Quectel_GSM_UART_Application_Note_V1.2.pdf)
 
-Local evidence: `MC-Sourcecode/ModemController/`,
-`ModemController_V1.5.0.10/`, `Infos/AT-Befehle.txt`, `Infos/Init-Strings.md`,
-the modem manuals under `Infos/`, and the repository screenshots. Some local
+Local evidence: `.Old_Version/MC-Sourcecode/ModemController/`,
+`.Old_Version/ModemController_V1.5.0.10/`, `docs/Infos/AT-Befehle.txt`,
+`docs/Infos/Init-Strings.md`, the modem manuals under `docs/Infos/`, and the
+screenshots under `docs/images/`. Some local
 reference content is ignored by Git; verify availability in a fresh checkout.

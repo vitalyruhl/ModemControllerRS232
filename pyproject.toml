@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "modem-controller-rs232"
+version = "0.0.0"
+description = "Scaffold for a Windows modem terminal and diagnostics application"
+readme = "README.md"
+# Set requires-python and runtime dependencies after Windows 10 compatibility review.
+# This metadata describes an empty scaffold, not a runnable application.
+dependencies = []
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
