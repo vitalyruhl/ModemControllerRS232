@@ -99,8 +99,53 @@ compare against a known-working HTerm session, not confirmed root causes.
 ## User interface
 
 Keep the terminal as the central, largest part of the window. Put searchable
-command categories and favorites beside it, with free command entry and Send
-close to the terminal. Provide clear connection state and a stop/cancel action.
+command categories and favorites beside it. Integrate command entry into the
+terminal surface so typing, sent commands, and received responses share one
+workspace; a separate send panel must not be required for ordinary use. Provide
+clear connection state and a stop/cancel action.
+
+### YAT evaluation and agreed product direction (2026-09-16)
+
+The user evaluated YAT 2.8.2 portable with a small MC/TC command-page template.
+An ESP32 was connected because no modem was available. This was a UI evaluation,
+not modem interoperability or AT-response validation.
+
+Keep the useful interaction ideas: a dropdown selects a command category or
+profile, and a small group of labeled buttons presents its commands. Preserve
+exact-byte buttons and an optional hex view. Build our own lightweight,
+focused application rather than reproducing YAT's full feature set or interface.
+Reuse interaction ideas and our own reviewed command data, not YAT program code
+or binaries. Python, PySide6 and pySerial remain the agreed technology direction.
+
+The user's reported friction during this trial was too many options, paths not
+being remembered, presets needing repeated loading, and a receive area that did
+not also serve as the terminal input area. These are trial observations and
+product requirements, not verified claims that YAT cannot support persistence.
+
+Requirements for our application:
+
+- Keep ordinary use focused on the port, Connect, a category/profile dropdown,
+  a compact command-button group, and the shared terminal surface. Put advanced
+  settings and diagnostic detail behind an explicit expansion.
+- Allow typing commands directly in the terminal workspace, with command history
+  and sent/received content visible together. Preserve the received transcript;
+  typing must edit the current input only. Define local echo and Enter/terminator
+  behavior explicitly, without sending bytes merely when focus changes.
+- Remember imported presets, user edits, the selected profile/category, and the
+  last connection settings across restarts. Import once; normal startup must not
+  require browsing for and reloading a preset file.
+- Remember the last directories used for import, export, logs, and captures.
+  Store settings in the chosen portable/per-user location and use relative paths
+  for bundled resources. Handle moved or missing directories with a clear fallback
+  instead of silently discarding the saved configuration.
+- Restoring settings must not automatically transmit commands, execute setup
+  sequences, or connect to a device. Connection remains an explicit user action.
+- Keep empty buttons and secondary panels out of the default view. Favor a small,
+  coherent interface over exposing every possible terminal feature at startup.
+
+The tracked [YAT command-page reference](../.Info/YAT/README.md) preserves the
+trial template as design/input material. The downloaded application and local
+experiments remain under ignored `.Temp/`; no YAT runtime is a project dependency.
 
 ### Simple connection mode
 
@@ -286,6 +331,11 @@ catalog content while replacing timing, transport, and persistence boundaries.
 - Search rejects echoes and stale/unrelated OKs, confirms new responses, remains
   bounded, and never emits configuration/reset/save commands.
 - Legacy import preserves originals and exposes unsupported/ambiguous entries.
+- Restart restores presets, user edits, selected category/profile, connection
+  settings and file-dialog directories without reimport or automatic device I/O.
+  Verify portable-folder relocation and missing-path fallback separately.
+- Ordinary AT entry works in the shared terminal workspace without a separate
+  send window; sent and received content remains readable together.
 - Explicit differentiation between simulator tests, packaging checks, and actual
   hardware evidence. None of these implementation checks has run yet.
 

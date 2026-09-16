@@ -2,6 +2,8 @@
 
 - [Upgrade proposal](upgrade.md): agreed requirements, proposed behavior, technology
   tradeoffs, implementation order, and future acceptance criteria.
+- [YAT evaluation template](../.Info/YAT/README.md): our MC/TC command pages and
+  evaluation limits; the YAT application itself is not included.
 - [Legacy project description](legacy/README.md): original application background.
 - [AT command notes](Infos/AT-Befehle.txt) and
   [initialization strings](Infos/Init-Strings.md): historical reference material
