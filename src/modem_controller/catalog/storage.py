@@ -29,6 +29,9 @@ class Settings:
     last_directories: dict[str, str] = field(default_factory=dict)
     favorites: tuple[str, ...] = ()
     profile_notes: dict[str, str] = field(default_factory=dict)
+    log_file: str = ""
+    logging_enabled: bool = False
+    logging_mode: str = "normal"
 
     def to_dict(self) -> dict[str, Any]:
         return {"schema_version": SETTINGS_SCHEMA_VERSION, **asdict(self)}
@@ -51,6 +54,9 @@ class Settings:
             last_directories=_string_mapping(data, "last_directories"),
             favorites=tuple(_string_list(data, "favorites")),
             profile_notes=_string_mapping(data, "profile_notes"),
+            log_file=_string(data, "log_file", ""),
+            logging_enabled=_bool(data, "logging_enabled", False),
+            logging_mode=_logging_mode(data),
         )
 
 
@@ -171,6 +177,20 @@ def _string_list(data: dict[str, Any], key: str) -> list[str]:
     value = data.get(key, [])
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise StorageError(f"{key} must be a string list")
+    return value
+
+
+def _bool(data: dict[str, Any], key: str, default: bool) -> bool:
+    value = data.get(key, default)
+    if not isinstance(value, bool):
+        raise StorageError(f"{key} must be true or false")
+    return value
+
+
+def _logging_mode(data: dict[str, Any]) -> str:
+    value = _string(data, "logging_mode", "normal")
+    if value not in {"normal", "verbose"}:
+        raise StorageError("logging_mode must be normal or verbose")
     return value
 
 

@@ -44,8 +44,10 @@ def test_worker_opens_sends_receives_and_closes_without_ui_thread_io(qtbot) -> N
     worker = SerialConnectionWorker(lambda: port)
     connected: list[str] = []
     received: list[bytes] = []
+    transmitted: list[bytes] = []
     worker.connected.connect(connected.append)
     worker.received.connect(received.append)
+    worker.transmitted.connect(transmitted.append)
 
     worker.open(SerialSettings(port="COM10", baud_rate=19200))
     worker.send(b"AT\r", False)
@@ -54,9 +56,10 @@ def test_worker_opens_sends_receives_and_closes_without_ui_thread_io(qtbot) -> N
     worker.poll()
     worker.close()
 
-    assert connected == ["COM10 | 19200 Bd | 8N1 | Kein"]
+    assert connected == ["COM10 | 19200 Bd | 8N1 | None"]
     assert port.writes == [(b"AT\r", False), (b"AT+CPIN=1234\r", True)]
     assert received == [b"AT\r\r\nOK\r\n"]
+    assert transmitted == [b"AT\r", b"AT+CPIN=1234\r"]
     assert not port.is_open
 
 
@@ -170,3 +173,20 @@ def test_worker_queries_sms_status_with_at_session(qtbot) -> None:
         b"AT+CSCS?\r",
         b"AT+CPMS?\r",
     ]
+
+
+def test_worker_records_full_sms_wire_payloads_and_responses(qtbot) -> None:
+    port = FakePort()
+    port.open(SerialSettings(port="COM10"))
+    port.received.extend((b"\r\n> ", b"\r\n+CMGS: 7\r\nOK\r\n"))
+    worker = SerialConnectionWorker(lambda: port)
+    worker._port = port
+    transmitted: list[bytes] = []
+    received: list[bytes] = []
+    worker.transmitted.connect(transmitted.append)
+    worker.session_received.connect(received.append)
+
+    worker.send_sms("491234567", "evidence text")
+
+    assert transmitted == [b'AT+CMGS="491234567"\r', b"evidence text\x1a"]
+    assert received == [b"\r\n> ", b"\r\n+CMGS: 7\r\nOK\r\n"]

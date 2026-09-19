@@ -33,12 +33,54 @@ from modem_controller.workflows.sms import SmsInspector, SmsMessage, SmsSendWork
 PortFactory = Callable[[], SerialPort]
 
 
+class _ObservedSessionTransport:
+    """Relays session I/O only after the underlying port accepts or returns bytes."""
+
+    def __init__(
+        self,
+        port: SerialPort,
+        *,
+        transmitted: Callable[[bytes], None],
+        received: Callable[[bytes], None],
+    ) -> None:
+        self._port = port
+        self._transmitted = transmitted
+        self._received = received
+
+    @property
+    def is_open(self) -> bool:
+        return self._port.is_open
+
+    def read_available(self, max_bytes: int = 4096) -> bytes:
+        payload = self._port.read_available()
+        if payload:
+            self._received(payload)
+        return payload
+
+    def write(self, payload: bytes) -> int:
+        return self._write(payload, sensitive=False)
+
+    def write_sensitive(self, payload: bytes) -> int:
+        return self._write(payload, sensitive=True)
+
+    def _write(self, payload: bytes, *, sensitive: bool) -> int:
+        if sensitive:
+            written = self._port.write_sensitive(payload)
+        else:
+            written = self._port.write(payload)
+        if written:
+            self._transmitted(payload[:written])
+        return written
+
+
 class SerialConnectionWorker(QObject):
     """Owns serial I/O in its worker thread and emits UI-safe events."""
 
     connected = Signal(str)
     disconnected = Signal()
     received = Signal(bytes)
+    transmitted = Signal(bytes)
+    session_received = Signal(bytes)
     control_bytes_sent = Signal(bytes)
     error = Signal(str)
     diagnostics_completed = Signal(object)
@@ -86,11 +128,13 @@ class SerialConnectionWorker(QObject):
 
     @Slot(bytes, bool)
     def send(self, payload: bytes, sensitive: bool) -> None:
-        self._write(payload, sensitive=sensitive)
+        if self._write(payload, sensitive=sensitive):
+            self.transmitted.emit(payload)
 
     @Slot(bytes)
     def send_control_bytes(self, payload: bytes) -> None:
         if self._write(payload, sensitive=False):
+            self.transmitted.emit(payload)
             self.control_bytes_sent.emit(payload)
 
     def _write(self, payload: bytes, *, sensitive: bool) -> bool:
@@ -131,7 +175,7 @@ class SerialConnectionWorker(QObject):
             self.workflow_finished.emit()
             return
         self._cancel_requested.clear()
-        session = AtSession(port, clock=monotonic)
+        session = self._session(port)
         try:
             results = DiagnosticRunner(
                 lambda command: self._exchange(
@@ -172,7 +216,7 @@ class SerialConnectionWorker(QObject):
         try:
             result = MaintenanceRunner(
                 lambda payload: self._exchange(
-                    AtSession(port, clock=monotonic),
+                    self._session(port),
                     payload,
                     timeout=command.timeout_seconds,
                 )
@@ -193,7 +237,7 @@ class SerialConnectionWorker(QObject):
             return
         try:
             workflow = SmsSendWorkflow(
-                AtSession(port, clock=monotonic),
+                self._session(port),
                 completion_timeout=timedelta(seconds=60),
             )
             workflow.begin(SmsMessage(recipient, body), confirmed=True)
@@ -226,7 +270,7 @@ class SerialConnectionWorker(QObject):
             self.workflow_finished.emit()
             return
         try:
-            session = AtSession(port, clock=monotonic)
+            session = self._session(port)
             exchanges = tuple(
                 self._exchange(session, payload, timeout=10) for payload in payloads
             )
@@ -239,6 +283,16 @@ class SerialConnectionWorker(QObject):
             self._poll_timer = QTimer(self)
             self._poll_timer.timeout.connect(self.poll)
         return self._poll_timer
+
+    def _session(self, port: SerialPort) -> AtSession:
+        return AtSession(
+            _ObservedSessionTransport(
+                port,
+                transmitted=self.transmitted.emit,
+                received=self.session_received.emit,
+            ),
+            clock=monotonic,
+        )
 
     def _exchange(
         self, session: AtSession, payload: bytes, *, timeout: float
@@ -272,7 +326,7 @@ class SerialConnectionWorker(QObject):
         started_at = monotonic()
         try:
             port.open(settings)
-            return self._exchange(AtSession(port, clock=monotonic), payload, timeout=2)
+            return self._exchange(self._session(port), payload, timeout=2)
         except SerialPortError:
             return AtExchange(
                 payload,
@@ -295,6 +349,8 @@ class ConnectionController(QObject):
     connected = Signal(str)
     disconnected = Signal()
     received = Signal(bytes)
+    transmitted = Signal(bytes)
+    session_received = Signal(bytes)
     control_bytes_sent = Signal(bytes)
     error = Signal(str)
     diagnostics_completed = Signal(object)
@@ -352,6 +408,8 @@ class ConnectionController(QObject):
         self._worker.connected.connect(self._relay_connected)
         self._worker.disconnected.connect(self._relay_disconnected)
         self._worker.received.connect(self._relay_received)
+        self._worker.transmitted.connect(self.transmitted)
+        self._worker.session_received.connect(self.session_received)
         self._worker.control_bytes_sent.connect(self.control_bytes_sent)
         self._worker.error.connect(self._relay_error)
         self._worker.diagnostics_completed.connect(self.diagnostics_completed)
@@ -426,7 +484,7 @@ class ConnectionController(QObject):
 
 def _format_settings(settings: SerialSettings) -> str:
     flow_control = {
-        FlowControl.NONE: "Kein",
+        FlowControl.NONE: "None",
         FlowControl.RTS_CTS: "RTS/CTS",
         FlowControl.DSR_DTR: "DSR/DTR",
     }[settings.flow_control]

@@ -23,6 +23,9 @@ def test_settings_round_trip_preserves_preferences_without_device_actions(
         last_directories={"export": "C:/Reports"},
         favorites=("signal-quality",),
         profile_notes={"generic-at": "Adapter observed."},
+        log_file="C:/Reports/modem.log",
+        logging_enabled=True,
+        logging_mode="verbose",
     )
 
     store.save(settings)

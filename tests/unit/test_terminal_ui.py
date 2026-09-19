@@ -6,6 +6,7 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 
 from modem_controller.ui.connection_panel import ConnectionPanel
 from modem_controller.ui.main_window import MainWindow
+from modem_controller.ui.session_log import LogMode
 from modem_controller.ui.terminal_view import TerminalDirection, TerminalWorkspace
 
 
@@ -63,6 +64,20 @@ def test_terminal_bounds_history_and_pauses_autoscroll(qtbot) -> None:
 
     assert [entry.data for entry in terminal.entries] == [b"second", b"third"]
     assert terminal.is_auto_scroll_paused
+
+
+def test_clear_button_removes_terminal_entries_and_emits_a_clear_intent(qtbot) -> None:
+    terminal = TerminalWorkspace()
+    qtbot.addWidget(terminal)
+    cleared: list[bool] = []
+    terminal.clear_requested.connect(lambda: cleared.append(True))
+    terminal.append_received(b"old output")
+
+    terminal.clear_button.click()
+
+    assert terminal.entries == ()
+    assert terminal.transcript.toPlainText() == ""
+    assert cleared == [True]
 
 
 def test_active_workflow_prevents_manual_interleaving_and_port_errors_are_visible(
@@ -182,7 +197,7 @@ def test_control_byte_presets_send_exact_bytes_after_confirmation(qtbot) -> None
     ):
         buttons[0].click()
     assert controller.sent == [(b"\r", False)]
-    assert "TX  0D" in window.terminal.transcript.toPlainText()
+    assert "TX  HEX 0D" in window.terminal.transcript.toPlainText()
     assert "Control byte send requested: 0D" in window.terminal.transcript.toPlainText()
     assert (
         "Control bytes written to serial port: 0D"
@@ -190,10 +205,36 @@ def test_control_byte_presets_send_exact_bytes_after_confirmation(qtbot) -> None
     )
 
 
+def test_verbose_log_records_connection_intents_and_terminal_clear(
+    qtbot, tmp_path
+) -> None:
+    controller = FakeConnectionController()
+    window = MainWindow(
+        port_provider=lambda: ["COM10"], connection_controller=controller
+    )
+    qtbot.addWidget(window)
+    log_path = tmp_path / "session.log"
+    window._session_log.configure(log_path, enabled=True, mode=LogMode.VERBOSE)
+
+    window.connection_panel.connect_button.click()
+    window.terminal.append_received(b"old output")
+    window.terminal.clear_button.click()
+    window.connection_panel.disconnect_button.click()
+
+    content = log_path.read_text(encoding="utf-8")
+    assert "CONNECT REQUESTED COM10 | 115200 Bd | 8N1 | none" in content
+    assert "CONNECTED COM10 | 115200 Bd" in content
+    assert "TERMINAL CLEARED" in content
+    assert "DISCONNECT REQUESTED" in content
+    assert "DISCONNECTED" in content
+
+
 class FakeConnectionController(QObject):
     connected = Signal(str)
     disconnected = Signal()
     received = Signal(bytes)
+    session_received = Signal(bytes)
+    transmitted = Signal(bytes)
     control_bytes_sent = Signal(bytes)
     error = Signal(str)
     diagnostics_completed = Signal(object)

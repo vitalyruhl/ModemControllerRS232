@@ -48,6 +48,15 @@ uv run pytest
 uv build
 ```
 
+Start the development GUI from Command Prompt or Explorer with:
+
+```cmd
+start-gui.cmd
+```
+
+This launcher uses the local `uv` development environment. A distributed bundle
+will instead start the packaged `ModemController.exe`.
+
 The planned target is Windows 10 20H2 x64 and newer. The baseline establishes a
 repeatable development environment; packaged Windows compatibility is deferred to
 the packaging milestone.

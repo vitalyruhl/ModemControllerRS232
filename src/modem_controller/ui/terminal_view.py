@@ -52,6 +52,7 @@ class TerminalWorkspace(QWidget):
 
     text_submitted = Signal(str, bytes, bool)
     bytes_submitted = Signal(bytes)
+    clear_requested = Signal()
 
     def __init__(
         self, *, max_entries: int = 1_000, parent: QWidget | None = None
@@ -86,6 +87,8 @@ class TerminalWorkspace(QWidget):
 
         self.send_button = QPushButton("Send", self)
         self.send_button.clicked.connect(self.submit_text)
+        self.clear_button = QPushButton("Clear", self)
+        self.clear_button.clicked.connect(self._request_clear)
 
         self.hex_input = QLineEdit(self)
         self.hex_input.setObjectName("hexInput")
@@ -100,6 +103,7 @@ class TerminalWorkspace(QWidget):
         input_layout.addWidget(self.command_input, 1)
         input_layout.addWidget(self.terminator)
         input_layout.addWidget(self.send_button)
+        input_layout.addWidget(self.clear_button)
 
         hex_layout = QHBoxLayout()
         hex_layout.addWidget(self.hex_input, 1)
@@ -156,6 +160,10 @@ class TerminalWorkspace(QWidget):
     def clear(self) -> None:
         self._entries.clear()
         self.transcript.clear()
+
+    def _request_clear(self) -> None:
+        self.clear()
+        self.clear_requested.emit()
 
     def submit_text(self) -> bool:
         if self._workflow_active:
@@ -257,7 +265,7 @@ class TerminalWorkspace(QWidget):
         text = entry.data.decode("utf-8", errors="replace")
         hexadecimal = entry.data.hex(" ").upper()
         if entry.force_hex or mode is DisplayMode.HEX:
-            payload = hexadecimal
+            payload = f"HEX {hexadecimal}" if entry.force_hex else hexadecimal
         elif mode is DisplayMode.TEXT:
             payload = text
         else:

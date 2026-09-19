@@ -40,3 +40,23 @@ def test_window_saves_explicit_ui_preferences_on_close(qtbot, tmp_path) -> None:
     assert saved.selected_category == "Status"
     assert saved.connection["port"] == "COM10"
     assert saved.connection["baud_rate"] == "19200"
+
+
+def test_window_restores_explicit_file_logging_preferences(qtbot, tmp_path) -> None:
+    store = SettingsStore(tmp_path)
+    log_path = tmp_path / "evidence.log"
+    store.save(
+        Settings(
+            log_file=str(log_path),
+            logging_enabled=True,
+            logging_mode="verbose",
+        )
+    )
+
+    window = MainWindow(port_provider=lambda: ["COM10"], settings_store=store)
+    qtbot.addWidget(window)
+
+    assert window.enable_logging_action.isChecked()
+    assert window.verbose_logging_action.isChecked()
+    assert window._session_log.path == log_path
+    assert "LOGGING enabled mode=verbose" in log_path.read_text(encoding="utf-8")

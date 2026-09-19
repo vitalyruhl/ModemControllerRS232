@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 
 from PySide6.QtCore import Signal
-from PySide6.QtGui import QAction, QCloseEvent
+from PySide6.QtGui import QAction, QActionGroup, QCloseEvent
 from PySide6.QtWidgets import (
     QComboBox,
+    QFileDialog,
     QGridLayout,
     QGroupBox,
     QInputDialog,
@@ -32,6 +34,7 @@ from modem_controller.catalog.storage import Settings, SettingsStore, StorageErr
 from modem_controller.transport.serial_port import available_ports
 from modem_controller.ui.connection_controller import ConnectionController
 from modem_controller.ui.connection_panel import ConnectionPanel
+from modem_controller.ui.session_log import LogMode, LogWriteError, SessionLog
 from modem_controller.ui.sms_dialog import SmsDialog
 from modem_controller.ui.terminal_view import TerminalWorkspace
 from modem_controller.workflows.connection_search import ConnectionSearchResult
@@ -61,6 +64,7 @@ class MainWindow(QMainWindow):
         self._connection_controller = connection_controller
         self._settings_store = settings_store
         self._settings = Settings()
+        self._session_log = SessionLog()
         self._workflow_active = False
         self._preset_execution_enabled = False
         self.setWindowTitle("Modem Controller")
@@ -85,6 +89,7 @@ class MainWindow(QMainWindow):
         self.sms_action = QAction("SMS...", self)
         self.sms_action.triggered.connect(self._show_sms_dialog)
         self.menuBar().addMenu("Messaging").addAction(self.sms_action)
+        self._create_logging_menu()
         self._set_sms_enabled(False)
 
         for profile in self._catalog.profiles:
@@ -99,6 +104,7 @@ class MainWindow(QMainWindow):
         self.connection_panel.cancel_requested.connect(self._cancel_workflow)
         self.terminal.text_submitted.connect(self._send_text)
         self.terminal.bytes_submitted.connect(self._send_bytes)
+        self.terminal.clear_requested.connect(self._terminal_cleared)
         if self._connection_controller is not None:
             self._bind_connection_controller(self._connection_controller)
 
@@ -189,6 +195,9 @@ class MainWindow(QMainWindow):
             if command.kind is CommandKind.AT:
                 payload += self.terminal.selected_terminator
             self.terminal.append_transmitted(payload)
+            self._record_log(
+                self._session_log.record_preset_requested, command.label, payload
+            )
             self.preset_requested.emit(command)
             self._controller().send(payload)
             return
@@ -211,6 +220,9 @@ class MainWindow(QMainWindow):
         self.terminal.append_info(
             f"Control byte send requested: {payload.hex(' ').upper()}"
         )
+        self._record_log(
+            self._session_log.record_preset_requested, command.label, payload
+        )
         self.preset_requested.emit(command)
         self._controller().send_control_bytes(payload)
 
@@ -220,11 +232,20 @@ class MainWindow(QMainWindow):
         except ValueError as error:
             self.connection_panel.show_error(str(error))
             return
+        self.terminal.append_info(
+            f"Connect requested: {_format_connection_settings(settings)}"
+        )
+        self._record_log(
+            self._session_log.record_connect_requested,
+            _format_connection_settings(settings),
+        )
         self.connection_panel.set_connecting()
         self._controller().open(settings)
 
     def _disconnect(self) -> None:
         if self._connection_controller is not None:
+            self.terminal.append_info("Disconnect requested")
+            self._record_log(self._session_log.record_disconnect_requested)
             self._connection_controller.close()
 
     def _send_text(self, command: str, terminator: bytes, sensitive: bool) -> None:
@@ -245,7 +266,9 @@ class MainWindow(QMainWindow):
     def _bind_connection_controller(self, controller: ConnectionController) -> None:
         controller.connected.connect(self._connected)
         controller.disconnected.connect(self._disconnected)
-        controller.received.connect(self.terminal.append_received)
+        controller.received.connect(self._received)
+        controller.session_received.connect(self._log_received)
+        controller.transmitted.connect(self._log_transmitted)
         controller.control_bytes_sent.connect(self._show_control_bytes_sent)
         controller.error.connect(self._show_connection_error)
         controller.diagnostics_completed.connect(self._show_diagnostics)
@@ -259,11 +282,23 @@ class MainWindow(QMainWindow):
         self.connection_panel.set_connected(True, settings)
         self.set_preset_execution_enabled(True)
         self._set_sms_enabled(True)
+        self._record_log(self._session_log.record_connected, settings)
 
     def _disconnected(self) -> None:
         self.connection_panel.set_connected(False)
         self.set_preset_execution_enabled(False)
         self._set_sms_enabled(False)
+        self._record_log(self._session_log.record_disconnected)
+
+    def _received(self, payload: bytes) -> None:
+        self.terminal.append_received(payload)
+        self._record_log(self._session_log.record_received, payload)
+
+    def _log_transmitted(self, payload: bytes) -> None:
+        self._record_log(self._session_log.record_sent, payload)
+
+    def _log_received(self, payload: bytes) -> None:
+        self._record_log(self._session_log.record_received, payload)
 
     def _run_diagnostics(self) -> None:
         self.set_workflow_active(True)
@@ -342,9 +377,13 @@ class MainWindow(QMainWindow):
             f"Control bytes written to serial port: {hexadecimal}"
         )
 
+    def _terminal_cleared(self) -> None:
+        self._record_log(self._session_log.record_terminal_cleared)
+
     def _show_connection_error(self, message: str) -> None:
         self.connection_panel.show_error(message)
         self.terminal.append_info(f"Serial error: {message}")
+        self._record_log(self._session_log.record_error, message)
 
     def _query_sms_status(self) -> None:
         self.set_workflow_active(True)
@@ -388,10 +427,109 @@ class MainWindow(QMainWindow):
         self.sms_dialog.raise_()
         self.sms_dialog.activateWindow()
 
+    def _create_logging_menu(self) -> None:
+        menu = self.menuBar().addMenu("Logging")
+        self.enable_logging_action = QAction("Enable file logging", self)
+        self.enable_logging_action.setCheckable(True)
+        self.select_log_file_action = QAction("Select log file...", self)
+        self.normal_logging_action = QAction("Normal", self)
+        self.normal_logging_action.setCheckable(True)
+        self.verbose_logging_action = QAction("Verbose", self)
+        self.verbose_logging_action.setCheckable(True)
+        self.normal_logging_action.setChecked(True)
+        mode_group = QActionGroup(self)
+        mode_group.setExclusive(True)
+        mode_group.addAction(self.normal_logging_action)
+        mode_group.addAction(self.verbose_logging_action)
+        menu.addAction(self.enable_logging_action)
+        menu.addAction(self.select_log_file_action)
+        menu.addSeparator()
+        menu.addAction(self.normal_logging_action)
+        menu.addAction(self.verbose_logging_action)
+        self.enable_logging_action.toggled.connect(self._set_logging_enabled)
+        self.select_log_file_action.triggered.connect(self._select_log_file)
+        self.normal_logging_action.triggered.connect(
+            lambda checked: checked and self._set_logging_mode(LogMode.NORMAL)
+        )
+        self.verbose_logging_action.triggered.connect(
+            lambda checked: checked and self._set_logging_mode(LogMode.VERBOSE)
+        )
+
+    def _select_log_file(self) -> None:
+        current_path = self._session_log.path
+        filename, _ = QFileDialog.getSaveFileName(
+            self,
+            "Select log file",
+            str(current_path) if current_path is not None else "modem-session.log",
+            "Log files (*.log);;All files (*)",
+        )
+        if not filename:
+            return
+        self._configure_logging(Path(filename), self.enable_logging_action.isChecked())
+        self._save_preferences()
+
+    def _set_logging_enabled(self, enabled: bool) -> None:
+        if enabled and self._session_log.path is None:
+            self._select_log_file()
+            if (
+                self._session_log.path is None
+                or not self.enable_logging_action.isChecked()
+            ):
+                self._set_logging_checked(False)
+            return
+        self._configure_logging(self._session_log.path, enabled)
+        self._save_preferences()
+
+    def _set_logging_mode(self, mode: LogMode) -> None:
+        self._configure_logging(
+            self._session_log.path, self.enable_logging_action.isChecked()
+        )
+        self._save_preferences()
+
+    def _configure_logging(self, path: Path | None, enabled: bool) -> None:
+        try:
+            self._session_log.configure(
+                path, enabled=enabled, mode=self._selected_logging_mode()
+            )
+        except LogWriteError as error:
+            self._set_logging_checked(False)
+            self.connection_panel.show_error(str(error))
+            self.terminal.append_info(f"Logging disabled: {error}")
+
+    def _restore_logging_preferences(self) -> None:
+        path = Path(self._settings.log_file) if self._settings.log_file else None
+        mode = LogMode(self._settings.logging_mode)
+        self.normal_logging_action.setChecked(mode is LogMode.NORMAL)
+        self.verbose_logging_action.setChecked(mode is LogMode.VERBOSE)
+        self._set_logging_checked(self._settings.logging_enabled)
+        self._configure_logging(path, self._settings.logging_enabled)
+
+    def _set_logging_checked(self, checked: bool) -> None:
+        self.enable_logging_action.blockSignals(True)
+        self.enable_logging_action.setChecked(checked)
+        self.enable_logging_action.blockSignals(False)
+
+    def _selected_logging_mode(self) -> LogMode:
+        if self.verbose_logging_action.isChecked():
+            return LogMode.VERBOSE
+        return LogMode.NORMAL
+
+    def _record_log(self, record, *args) -> None:
+        try:
+            record(*args)
+        except LogWriteError as error:
+            self._set_logging_checked(False)
+            self.connection_panel.show_error(str(error))
+            self.terminal.append_info(f"Logging disabled: {error}")
+
     def closeEvent(self, event: QCloseEvent) -> None:
         self._save_preferences()
         if self._connection_controller is not None:
             self._connection_controller.shutdown()
+        try:
+            self._session_log.close()
+        except LogWriteError as error:
+            self.connection_panel.show_error(str(error))
         super().closeEvent(event)
 
     def _load_preferences(self) -> None:
@@ -411,6 +549,7 @@ class MainWindow(QMainWindow):
         self._change_profile()
         if self.category_selector.findText(self._settings.selected_category) >= 0:
             self.category_selector.setCurrentText(self._settings.selected_category)
+        self._restore_logging_preferences()
 
     def _save_preferences(self) -> None:
         store = self._settings_store
@@ -423,6 +562,9 @@ class MainWindow(QMainWindow):
             last_directories=self._settings.last_directories,
             favorites=self._settings.favorites,
             profile_notes=self._settings.profile_notes,
+            log_file=str(self._session_log.path or ""),
+            logging_enabled=self.enable_logging_action.isChecked(),
+            logging_mode=self._selected_logging_mode().value,
         )
         try:
             store.save(settings)
@@ -435,3 +577,11 @@ class MainWindow(QMainWindow):
     @staticmethod
     def _user_notes(notes: str) -> str:
         return f"\n\n{notes}" if notes else ""
+
+
+def _format_connection_settings(settings) -> str:
+    return (
+        f"{settings.port} | {settings.baud_rate} Bd | "
+        f"{settings.data_bits}{settings.parity.value}{settings.stop_bits:g} | "
+        f"{settings.flow_control.value}"
+    )
