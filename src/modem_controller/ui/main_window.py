@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from PySide6.QtCore import Signal
 from PySide6.QtWidgets import (
     QComboBox,
@@ -20,6 +22,7 @@ from modem_controller.catalog.models import (
     CommandCatalog,
     load_starter_catalog,
 )
+from modem_controller.transport.serial_port import available_ports
 from modem_controller.ui.connection_panel import ConnectionPanel
 from modem_controller.ui.terminal_view import TerminalWorkspace
 
@@ -31,9 +34,15 @@ class MainWindow(QMainWindow):
     bytes_send_requested = Signal(bytes)
     preset_requested = Signal(object)
 
-    def __init__(self, catalog: CommandCatalog | None = None) -> None:
+    def __init__(
+        self,
+        catalog: CommandCatalog | None = None,
+        *,
+        port_provider: Callable[[], list[str]] = available_ports,
+    ) -> None:
         super().__init__()
         self._catalog = catalog or load_starter_catalog()
+        self._port_provider = port_provider
         self._workflow_active = False
         self._preset_execution_enabled = False
         self.setWindowTitle("Modem Controller")
@@ -56,6 +65,7 @@ class MainWindow(QMainWindow):
             self.profile_selector.addItem(profile.name, profile.id)
         self.profile_selector.currentIndexChanged.connect(self._change_profile)
         self.category_selector.currentTextChanged.connect(self._render_commands)
+        self.connection_panel.refresh_requested.connect(self.refresh_ports)
         self.terminal.text_submitted.connect(self.text_send_requested)
         self.terminal.bytes_submitted.connect(self.bytes_send_requested)
 
@@ -74,6 +84,15 @@ class MainWindow(QMainWindow):
         splitter.setSizes([330, 750])
         self.setCentralWidget(splitter)
         self._change_profile()
+        self.refresh_ports()
+
+    def refresh_ports(self) -> None:
+        """Refresh port choices without opening or connecting to a serial port."""
+
+        try:
+            self.connection_panel.set_ports(self._port_provider())
+        except OSError as error:
+            self.connection_panel.show_error(str(error))
 
     def set_workflow_active(self, active: bool) -> None:
         self._workflow_active = active

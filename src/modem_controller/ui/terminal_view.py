@@ -7,13 +7,15 @@ from collections import deque
 from dataclasses import dataclass
 from enum import Enum
 
-from PySide6.QtCore import Signal
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QApplication,
     QComboBox,
     QFormLayout,
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
@@ -64,6 +66,8 @@ class TerminalWorkspace(QWidget):
         self.transcript.setReadOnly(True)
         self.transcript.setObjectName("terminalTranscript")
         self.transcript.verticalScrollBar().valueChanged.connect(self._track_scroll)
+        self.transcript.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.transcript.customContextMenuRequested.connect(self._show_transcript_menu)
 
         self.display_mode = QComboBox(self)
         self.display_mode.addItems([mode.value for mode in DisplayMode])
@@ -170,6 +174,27 @@ class TerminalWorkspace(QWidget):
         self.validation_message.clear()
         return True
 
+    def copy_all(self) -> None:
+        QApplication.clipboard().setText(self.transcript.toPlainText())
+
+    def paste_into_input(self) -> None:
+        self.command_input.insert(QApplication.clipboard().text())
+        self.command_input.setFocus()
+
+    def resend_selected_line(self) -> bool:
+        """Resend raw bytes from the selected transcript line as text or exact bytes."""
+
+        entry = self._selected_entry()
+        if entry is None or entry.sensitive or self._workflow_active:
+            return False
+        command, terminator = self._as_text_command(entry.data)
+        self.append_transmitted(entry.data)
+        if command is None:
+            self.bytes_submitted.emit(entry.data)
+        else:
+            self.text_submitted.emit(command, terminator, False)
+        return True
+
     @staticmethod
     def _parse_hex(value: str) -> bytes:
         compact = "".join(value.split())
@@ -211,3 +236,50 @@ class TerminalWorkspace(QWidget):
     def _track_scroll(self, value: int) -> None:
         scroll_bar = self.transcript.verticalScrollBar()
         self._auto_scroll = value >= scroll_bar.maximum()
+
+    def _show_transcript_menu(self, position) -> None:
+        menu: QMenu = self.transcript.createStandardContextMenu()
+        menu.addSeparator()
+        copy_all = menu.addAction("Alles kopieren")
+        paste = menu.addAction("In Eingabe einfügen")
+        resend = menu.addAction("Zeile erneut senden")
+        resend.setEnabled(
+            self._selected_entry() is not None and not self._workflow_active
+        )
+        action = menu.exec(self.transcript.mapToGlobal(position))
+        if action is copy_all:
+            self.copy_all()
+        elif action is paste:
+            self.paste_into_input()
+        elif action is resend:
+            self.resend_selected_line()
+
+    def _selected_entry(self) -> TerminalEntry | None:
+        cursor = self.transcript.textCursor()
+        block_number = (
+            self.transcript.document().findBlock(cursor.position()).blockNumber()
+        )
+        if (
+            block_number == len(self._entries)
+            and cursor.position() == self.transcript.document().characterCount() - 1
+        ):
+            block_number -= 1
+        if 0 <= block_number < len(self._entries):
+            return tuple(self._entries)[block_number]
+        return None
+
+    @staticmethod
+    def _as_text_command(data: bytes) -> tuple[str | None, bytes]:
+        terminator = b""
+        for candidate in (b"\r\n", b"\r", b"\n"):
+            if data.endswith(candidate):
+                terminator = candidate
+                data = data[: -len(candidate)]
+                break
+        try:
+            command = data.decode("ascii")
+        except UnicodeDecodeError:
+            return None, b""
+        if not command or not command.isprintable():
+            return None, b""
+        return command, terminator

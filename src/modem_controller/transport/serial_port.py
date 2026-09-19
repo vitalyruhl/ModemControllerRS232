@@ -11,6 +11,7 @@ from threading import RLock
 from typing import Protocol
 
 import serial
+from serial.tools import list_ports
 
 from modem_controller.transport.capture import (
     CaptureBuffer,
@@ -212,6 +213,12 @@ class PySerialBackend:
 
 BackendFactory = Callable[[SerialSettings], SerialBackend]
 Clock = Callable[[], datetime]
+
+
+def available_ports() -> list[str]:
+    """List host serial ports without opening or changing any of them."""
+
+    return [port.device for port in list_ports.comports()]
 
 
 class SerialPort:
