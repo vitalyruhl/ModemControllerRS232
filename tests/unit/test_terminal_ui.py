@@ -135,6 +135,12 @@ class FakeConnectionController(QObject):
     disconnected = Signal()
     received = Signal(bytes)
     error = Signal(str)
+    diagnostics_completed = Signal(object)
+    search_completed = Signal(object)
+    maintenance_completed = Signal(object)
+    sms_completed = Signal(object)
+    sms_status_completed = Signal(object)
+    workflow_finished = Signal()
 
     def __init__(self) -> None:
         super().__init__()

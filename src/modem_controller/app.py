@@ -2,17 +2,27 @@
 
 from __future__ import annotations
 
+import os
 import sys
+from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
+from modem_controller.catalog.storage import SettingsStore, choose_settings_location
 from modem_controller.ui.main_window import MainWindow
 
 
 def create_main_window() -> MainWindow:
     """Create the UI without opening a port or sending any bytes."""
 
-    return MainWindow()
+    application_directory = Path(sys.argv[0]).resolve().parent
+    user_directory = (
+        Path(os.environ.get("LOCALAPPDATA", Path.home())) / "ModemController"
+    )
+    location = choose_settings_location(
+        application_directory, user_directory=user_directory
+    )
+    return MainWindow(settings_store=SettingsStore(location.directory))
 
 
 def main() -> int:

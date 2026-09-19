@@ -1,10 +1,12 @@
 from collections import deque
 
+from modem_controller.catalog.models import load_starter_catalog
 from modem_controller.transport.serial_port import SerialPortError, SerialSettings
 from modem_controller.ui.connection_controller import (
     ConnectionController,
     SerialConnectionWorker,
 )
+from modem_controller.workflows.connection_search import SearchOutcome
 
 
 class FakePort:
@@ -67,3 +69,72 @@ def test_controller_shutdown_closes_the_worker_owned_port(qtbot) -> None:
     controller.shutdown()
 
     assert not port.is_open
+
+
+def test_worker_runs_read_only_diagnostics_through_the_at_session(qtbot) -> None:
+    port = FakePort()
+    port.open(SerialSettings(port="COM10"))
+    port.received.extend(
+        b"\r\nOK\r\n" for _ in load_starter_catalog().profile("mc55i-qw").commands
+    )
+    worker = SerialConnectionWorker(lambda: port)
+    worker._port = port
+    completed: list[object] = []
+    worker.diagnostics_completed.connect(completed.append)
+
+    worker.run_diagnostics(load_starter_catalog().profile("mc55i-qw"))
+
+    assert len(completed) == 1
+    assert [payload for payload, _ in port.writes] == [b"AT\r", b"ATI\r"]
+
+
+def test_worker_connection_search_requires_repeated_at_responses(qtbot) -> None:
+    ports = [FakePort(), FakePort()]
+    for port in ports:
+        port.received.append(b"\r\nOK\r\n")
+    worker = SerialConnectionWorker(lambda: ports.pop(0))
+    completed: list[object] = []
+    worker.search_completed.connect(completed.append)
+
+    worker.search_settings("COM10")
+
+    assert completed[0].selected is not None
+    assert completed[0].selected.settings.baud_rate == 9600
+    assert len(completed[0].attempts) == 1
+    assert completed[0].attempts[0].outcome is SearchOutcome.CONFIRMED
+
+
+def test_worker_runs_confirmed_maintenance_once_then_closes(qtbot) -> None:
+    port = FakePort()
+    port.open(SerialSettings(port="COM10"))
+    port.received.append(b"\r\nOK\r\n")
+    worker = SerialConnectionWorker(lambda: port)
+    worker._port = port
+    completed: list[object] = []
+    worker.maintenance_completed.connect(completed.append)
+    command = load_starter_catalog().profile("generic-at").command("restart-modem")
+
+    worker.run_maintenance(command, {})
+
+    assert completed[0] is not None
+    assert [payload for payload, _ in port.writes] == [b"AT+CFUN=1,1\r"]
+    assert not port.is_open
+
+
+def test_worker_queries_sms_status_with_at_session(qtbot) -> None:
+    port = FakePort()
+    port.open(SerialSettings(port="COM10"))
+    port.received.extend((b"\r\nOK\r\n",) * 3)
+    worker = SerialConnectionWorker(lambda: port)
+    worker._port = port
+    completed: list[object] = []
+    worker.sms_status_completed.connect(completed.append)
+
+    worker.query_sms_status()
+
+    assert len(completed) == 1
+    assert [payload for payload, _ in port.writes] == [
+        b"AT+CMGF?\r",
+        b"AT+CSCS?\r",
+        b"AT+CPMS?\r",
+    ]

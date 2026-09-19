@@ -25,6 +25,7 @@ class ConnectionPanel(QWidget):
     disconnect_requested = Signal()
     refresh_requested = Signal()
     find_settings_requested = Signal()
+    diagnostics_requested = Signal()
     cancel_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
@@ -42,14 +43,17 @@ class ConnectionPanel(QWidget):
         self.disconnect_button = QPushButton("Trennen", self)
         self.refresh_button = QPushButton("Aktualisieren", self)
         self.find_button = QPushButton("Einstellungen suchen", self)
+        self.diagnostics_button = QPushButton("Diagnose starten", self)
         self.cancel_button = QPushButton("Stopp", self)
         self.disconnect_button.setEnabled(False)
+        self.diagnostics_button.setEnabled(False)
         self.cancel_button.setEnabled(False)
 
         self.connect_button.clicked.connect(self.connect_requested)
         self.disconnect_button.clicked.connect(self.disconnect_requested)
         self.refresh_button.clicked.connect(self.refresh_requested)
         self.find_button.clicked.connect(self.find_settings_requested)
+        self.diagnostics_button.clicked.connect(self.diagnostics_requested)
         self.cancel_button.clicked.connect(self.cancel_requested)
 
         self.advanced = QGroupBox("Erweiterte Verbindung", self)
@@ -57,7 +61,7 @@ class ConnectionPanel(QWidget):
         self.advanced.setChecked(False)
         advanced_layout = QFormLayout(self.advanced)
         self.baud_rate = QComboBox(self.advanced)
-        self.baud_rate.addItems(["9600", "19200", "57600", "115200"])
+        self.baud_rate.addItems(["9600", "19200", "38400", "57600", "115200"])
         self.baud_rate.setCurrentText("115200")
         self.data_bits = QComboBox(self.advanced)
         self.data_bits.addItems(["8", "7"])
@@ -84,6 +88,7 @@ class ConnectionPanel(QWidget):
             self.disconnect_button,
             self.refresh_button,
             self.find_button,
+            self.diagnostics_button,
             self.cancel_button,
         ):
             buttons.addWidget(button)
@@ -109,6 +114,7 @@ class ConnectionPanel(QWidget):
         self.effective_settings.setText(settings or "Keine Verbindung")
         self.connect_button.setEnabled(not connected)
         self.disconnect_button.setEnabled(connected)
+        self.diagnostics_button.setEnabled(connected)
 
     def selected_settings(self) -> SerialSettings:
         port = self.port_selector.currentText()
@@ -133,9 +139,59 @@ class ConnectionPanel(QWidget):
         self.status.setText("Verbinden...")
         self.connect_button.setEnabled(False)
 
+    def preferences(self) -> dict[str, str]:
+        return {
+            "port": self.port_selector.currentText(),
+            "baud_rate": self.baud_rate.currentText(),
+            "data_bits": self.data_bits.currentText(),
+            "parity": self.parity.currentText(),
+            "stop_bits": self.stop_bits.currentText(),
+            "flow_control": self.flow_control.currentText(),
+            "deadline_ms": str(self.deadline.value()),
+        }
+
+    def apply_preferences(self, preferences: dict[str, str]) -> None:
+        port = preferences.get("port", "")
+        if port and port != "Kein Port":
+            if self.port_selector.findText(port) < 0:
+                self.port_selector.addItem(port)
+            self.port_selector.setCurrentText(port)
+        for selector, key in (
+            (self.baud_rate, "baud_rate"),
+            (self.data_bits, "data_bits"),
+            (self.parity, "parity"),
+            (self.stop_bits, "stop_bits"),
+            (self.flow_control, "flow_control"),
+        ):
+            value = preferences.get(key)
+            if value is not None and selector.findText(value) >= 0:
+                selector.setCurrentText(value)
+        deadline = preferences.get("deadline_ms")
+        if deadline is not None and deadline.isdecimal():
+            self.deadline.setValue(int(deadline))
+
+    def apply_settings(self, settings: SerialSettings) -> None:
+        self.apply_preferences(
+            {
+                "port": settings.port,
+                "baud_rate": str(settings.baud_rate),
+                "data_bits": str(settings.data_bits),
+                "parity": settings.parity.value,
+                "stop_bits": f"{settings.stop_bits:g}",
+                "flow_control": {
+                    FlowControl.NONE: "Kein",
+                    FlowControl.RTS_CTS: "RTS/CTS",
+                    FlowControl.DSR_DTR: "DSR/DTR",
+                }[settings.flow_control],
+            }
+        )
+
     def set_workflow_active(self, active: bool) -> None:
         self.cancel_button.setEnabled(active)
         self.find_button.setEnabled(not active)
+        self.diagnostics_button.setEnabled(
+            not active and not self.connect_button.isEnabled()
+        )
 
     def show_error(self, message: str) -> None:
         self.status.setText(f"Fehler: {message}")
