@@ -7,9 +7,12 @@ name = "modem-controller-rs232"
 version = "0.0.0"
 description = "Scaffold for a Windows modem terminal and diagnostics application"
 readme = "README.md"
-# Set requires-python and runtime dependencies after Windows 10 compatibility review.
-# This metadata describes an empty scaffold, not a runnable application.
-dependencies = []
+requires-python = ">=3.12,<3.14"
+license = "GPL-3.0-only"
+dependencies = [
+    "pyserial==3.5",
+    "pyside6==6.8.3",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -17,3 +20,18 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[dependency-groups]
+dev = [
+    "pyinstaller==6.12.0",
+    "pytest==8.3.5",
+    "pytest-qt==4.4.0",
+    "ruff==0.11.2",
+]

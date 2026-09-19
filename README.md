@@ -1,8 +1,9 @@
 # ModemControllerRS232
 
 A Windows modem terminal being prepared for a Python rewrite with PySide6 and
-pySerial. The repository currently contains an **empty application scaffold**
-and the preserved VB.NET application. The Python application is not runnable yet.
+pySerial. The repository contains an **application scaffold** and the preserved
+VB.NET application. The Python package has a reproducible development baseline,
+but no application behavior yet.
 
 The intended application is a compact diagnosis tool for text-based AT modems,
 with category buttons, visible profile notes and optional hex inspection, not a
@@ -30,12 +31,26 @@ for the consolidated AT reference and device manuals.
 `-- pyproject.toml          Initial Python package metadata
 ```
 
-Every Python file is deliberately empty. Runtime dependencies, a Python version
-baseline, executable entry points, GUI behavior, and hardware access have not been
-implemented or validated. Version `0.0.0` is a scaffold marker, not a release.
+The Python modules are deliberately empty. GUI behavior, executable entry points,
+and hardware access have not been implemented or validated. Version `0.0.0` is a
+scaffold marker, not a release.
 
-The planned target is Windows 10 20H2 x64 and newer. Confirm and pin compatible
-Python, Qt/PySide6, pySerial, and packaging versions before implementation.
+## Development baseline
+
+Python 3.12 or 3.13 is required. The locked baseline uses PySide6 6.8.3,
+pySerial 3.5, PyInstaller 6.12.0, pytest 8.3.5, pytest-qt 4.4.0, and Ruff 0.11.2.
+
+```powershell
+uv sync --frozen
+uv run ruff check .
+uv run ruff format --check .
+uv run pytest
+uv build
+```
+
+The planned target is Windows 10 20H2 x64 and newer. The baseline establishes a
+repeatable development environment; packaged Windows compatibility is deferred to
+the packaging milestone.
 
 ## Existing application
 
