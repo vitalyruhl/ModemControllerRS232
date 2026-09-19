@@ -10,10 +10,15 @@ from modem_controller.transport.capture import CaptureRecord
 from modem_controller.workflows.diagnostics import DiagnosticResult
 
 _SENSITIVE = re.compile(r"(\+?\d{6,}|\b\d{14,}\b|[A-Za-z]:\\[^\s]+)")
+_SENSITIVE_AT_INPUT = re.compile(
+    r"AT\+(?:CPIN|CLCK|CPWD)\s*=\s*[^\r\n\s]+", re.IGNORECASE
+)
 
 
 def redact(value: str) -> str:
-    return _SENSITIVE.sub("<redacted>", value)
+    return _SENSITIVE.sub(
+        "<redacted>", _SENSITIVE_AT_INPUT.sub("<sensitive input redacted>", value)
+    )
 
 
 def render_report(

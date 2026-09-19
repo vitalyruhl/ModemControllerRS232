@@ -76,10 +76,11 @@ def test_visible_and_diagnostic_commands_exclude_unverified_and_unsafe_entries()
     visible_ids = {command.id for command in profile.visible_commands}
     diagnostic_ids = {command.id for command in profile.diagnostic_commands}
 
-    assert "unlock-sim" not in visible_ids
+    assert "unlock-sim" in visible_ids
     assert "ras-collector" not in visible_ids
     assert "send-control-z" in visible_ids
     assert "send-control-z" not in diagnostic_ids
+    assert "unlock-sim" not in diagnostic_ids
     assert diagnostic_ids == {
         "attention",
         "identity",

@@ -227,11 +227,11 @@
           "category": "Maintenance",
           "kind": "at",
           "payload": "AT+CPIN={pin}",
-          "help_text": "Requires an explicit future maintenance workflow and is never diagnostic.",
+          "help_text": "Unlocks a SIM only after an explicit maintenance confirmation. The PIN is transient and excluded from history, capture and reports.",
           "risk": "state_changing",
           "applicability": ["generic-at"],
           "references": ["at-text-reference"],
-          "verification": "unverified",
+          "verification": "supported",
           "expected_response": "OK or CME error",
           "timeout_seconds": 10,
           "parameters": [
@@ -243,6 +243,36 @@
               "pattern": "[0-9]{4,8}"
             }
           ]
+        },
+        {
+          "id": "restart-modem",
+          "label": "Restart modem",
+          "category": "Maintenance",
+          "kind": "at",
+          "payload": "AT+CFUN=1,1",
+          "help_text": "Restarts a supported modem and invalidates current observations. Requires explicit confirmation.",
+          "risk": "state_changing",
+          "applicability": ["generic-at"],
+          "references": ["at-text-reference"],
+          "verification": "supported",
+          "expected_response": "Device-specific restart indication or OK",
+          "timeout_seconds": 10,
+          "parameters": []
+        },
+        {
+          "id": "restore-defaults",
+          "label": "Restore defaults",
+          "category": "Maintenance",
+          "kind": "at",
+          "payload": "AT&F",
+          "help_text": "Restores a supported modem profile. Requires explicit confirmation and can change active settings.",
+          "risk": "destructive",
+          "applicability": ["generic-at"],
+          "references": ["at-text-reference"],
+          "verification": "supported",
+          "expected_response": "OK or device-specific error",
+          "timeout_seconds": 10,
+          "parameters": []
         },
         {
           "id": "ras-collector",
