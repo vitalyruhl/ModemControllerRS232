@@ -33,6 +33,28 @@ def test_starter_catalog_round_trips_and_preserves_control_bytes() -> None:
     assert type(catalog).from_json(catalog.to_json()) == catalog
 
 
+def test_device_profile_packs_expose_only_reviewed_commands() -> None:
+    catalog = load_starter_catalog()
+
+    assert {profile.id for profile in catalog.profiles} == {
+        "generic-at",
+        "mc55i-qw",
+        "tc35-tc35i",
+        "mc93",
+        "tc55i",
+        "mc88-mc88i",
+    }
+    assert {command.id for command in catalog.profile("mc55i-qw").visible_commands} == {
+        "attention",
+        "identity",
+    }
+    assert {
+        command.id for command in catalog.profile("tc35-tc35i").diagnostic_commands
+    } == {"sim-status", "registration-status", "signal-quality"}
+    for profile_id in ("mc93", "tc55i", "mc88-mc88i"):
+        assert catalog.profile(profile_id).visible_commands == ()
+
+
 def test_parameter_validation_keeps_sensitive_maintenance_actions_explicit() -> None:
     command = load_starter_catalog().profile("generic-at").command("unlock-sim")
 

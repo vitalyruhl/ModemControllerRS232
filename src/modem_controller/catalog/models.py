@@ -369,10 +369,25 @@ class CommandCatalog:
 
 
 def load_starter_catalog() -> CommandCatalog:
-    """Load the reviewed, generic profile bundled with this package."""
+    """Load all reviewed, bundled profile packs into one validated catalog."""
 
-    data = files("modem_controller.catalog").joinpath("data/generic-at.json")
-    return CommandCatalog.from_json(data.read_text(encoding="utf-8"))
+    data_directory = files("modem_controller.catalog").joinpath("data")
+    catalogs = [
+        CommandCatalog.from_json(path.read_text(encoding="utf-8"))
+        for path in sorted(data_directory.iterdir(), key=lambda path: path.name)
+        if path.name.endswith(".json")
+    ]
+    references: dict[str, str] = {}
+    profiles: list[DeviceProfile] = []
+    for catalog in catalogs:
+        for reference_id, source in catalog.references.items():
+            existing = references.setdefault(reference_id, source)
+            if existing != source:
+                raise CatalogValidationError(
+                    f"reference {reference_id} has conflicting bundled sources"
+                )
+        profiles.extend(catalog.profiles)
+    return CommandCatalog(CATALOG_SCHEMA_VERSION, references, tuple(profiles))
 
 
 def _required_string(data: dict[str, Any], key: str) -> str:

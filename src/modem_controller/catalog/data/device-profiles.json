@@ -1,0 +1,121 @@
+{
+  "schema_version": 1,
+  "references": {
+    "at-text-reference": "docs/reference/at-commands.md",
+    "tc35-at-manual": "docs/reference/modems/tc35/tc3x_atc_01_v0400.pdf"
+  },
+  "profiles": [
+    {
+      "id": "mc55i-qw",
+      "name": "MC55i-Q / MC55i-W",
+      "shipped_notes": "Only the standard status queries below are exposed. Historical Q/W initialization notes contain state-changing commands and are not an automatic sequence. Verify the embedded module and firmware before enabling vendor-specific features.",
+      "user_notes": "",
+      "commands": [
+        {
+          "id": "attention",
+          "label": "AT",
+          "category": "Status",
+          "kind": "at",
+          "payload": "AT",
+          "help_text": "Checks whether the connected terminal accepts AT commands.",
+          "risk": "read_only",
+          "applicability": ["mc55i-qw"],
+          "references": ["at-text-reference"],
+          "verification": "supported",
+          "expected_response": "OK",
+          "timeout_seconds": 2,
+          "parameters": []
+        },
+        {
+          "id": "identity",
+          "label": "Identification",
+          "category": "Status",
+          "kind": "at",
+          "payload": "ATI",
+          "help_text": "Requests identification text for manual firmware comparison.",
+          "risk": "read_only",
+          "applicability": ["mc55i-qw"],
+          "references": ["at-text-reference"],
+          "verification": "supported",
+          "expected_response": "Identity text and OK",
+          "timeout_seconds": 2,
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "id": "tc35-tc35i",
+      "name": "TC35 / TC35i",
+      "shipped_notes": "Status queries are based on the TC35-family AT manual. Bearer and incoming-call setup remain firmware-dependent and require a separately confirmed maintenance action.",
+      "user_notes": "",
+      "commands": [
+        {
+          "id": "sim-status",
+          "label": "SIM status",
+          "category": "Status",
+          "kind": "at",
+          "payload": "AT+CPIN?",
+          "help_text": "Requests the current SIM readiness state.",
+          "risk": "read_only",
+          "applicability": ["tc35-tc35i"],
+          "references": ["tc35-at-manual"],
+          "verification": "supported",
+          "expected_response": "+CPIN and OK",
+          "timeout_seconds": 2,
+          "parameters": []
+        },
+        {
+          "id": "registration-status",
+          "label": "Registration",
+          "category": "Network",
+          "kind": "at",
+          "payload": "AT+CREG?",
+          "help_text": "Requests circuit-switched registration status.",
+          "risk": "read_only",
+          "applicability": ["tc35-tc35i"],
+          "references": ["tc35-at-manual"],
+          "verification": "supported",
+          "expected_response": "+CREG and OK",
+          "timeout_seconds": 2,
+          "parameters": []
+        },
+        {
+          "id": "signal-quality",
+          "label": "Signal quality",
+          "category": "Network",
+          "kind": "at",
+          "payload": "AT+CSQ",
+          "help_text": "Requests received signal quality and bit error rate.",
+          "risk": "read_only",
+          "applicability": ["tc35-tc35i"],
+          "references": ["tc35-at-manual"],
+          "verification": "supported",
+          "expected_response": "+CSQ and OK",
+          "timeout_seconds": 2,
+          "parameters": []
+        }
+      ]
+    },
+    {
+      "id": "mc93",
+      "name": "MC93",
+      "shipped_notes": "No reviewed MC93 command specification is bundled. No device-specific buttons are enabled until the terminal, module, firmware and source documentation are verified.",
+      "user_notes": "",
+      "commands": []
+    },
+    {
+      "id": "tc55i",
+      "name": "TC55i",
+      "shipped_notes": "No reviewed TC55i command specification is bundled. No device-specific buttons are enabled until the terminal, module, firmware and source documentation are verified.",
+      "user_notes": "",
+      "commands": []
+    },
+    {
+      "id": "mc88-mc88i",
+      "name": "MC88 / MC88i",
+      "shipped_notes": "Bundled MC88/MC88i material provides product context, not a command specification. No device-specific buttons are enabled without a reviewed AT reference and hardware confirmation.",
+      "user_notes": "",
+      "commands": []
+    }
+  ]
+}
