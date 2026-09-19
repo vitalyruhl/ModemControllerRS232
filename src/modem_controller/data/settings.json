@@ -1,0 +1,20 @@
+{
+  "connection": {
+    "baud_rate": "115200",
+    "data_bits": "8",
+    "deadline_ms": "2000",
+    "flow_control": "None",
+    "parity": "N",
+    "port": "COM10",
+    "stop_bits": "1"
+  },
+  "favorites": [],
+  "last_directories": {},
+  "log_file": "C:\\Daten\\_Codding\\ModemControllerRS232\\modem-session_test_2026.09.19 03-31.log",
+  "logging_enabled": true,
+  "logging_mode": "verbose",
+  "profile_notes": {},
+  "schema_version": 1,
+  "selected_category": "Control bytes",
+  "selected_profile": "generic-at"
+}
