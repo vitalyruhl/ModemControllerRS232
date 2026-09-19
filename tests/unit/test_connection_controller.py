@@ -60,6 +60,25 @@ def test_worker_opens_sends_receives_and_closes_without_ui_thread_io(qtbot) -> N
     assert not port.is_open
 
 
+def test_worker_confirms_control_bytes_only_after_the_write_succeeds(qtbot) -> None:
+    port = FakePort()
+    port.open(SerialSettings(port="COM10"))
+    worker = SerialConnectionWorker(lambda: port)
+    worker._port = port
+    confirmed: list[bytes] = []
+    worker.control_bytes_sent.connect(confirmed.append)
+
+    worker.send_control_bytes(b"\r")
+
+    assert port.writes == [(b"\r", False)]
+    assert confirmed == [b"\r"]
+
+    port.close()
+    worker.send_control_bytes(b"\x1b")
+
+    assert confirmed == [b"\r"]
+
+
 def test_controller_shutdown_closes_the_worker_owned_port(qtbot) -> None:
     port = FakePort()
     controller = ConnectionController(port_factory=lambda: port)
@@ -69,6 +88,19 @@ def test_controller_shutdown_closes_the_worker_owned_port(qtbot) -> None:
     controller.shutdown()
 
     assert not port.is_open
+
+
+def test_controller_relays_control_byte_write_confirmation(qtbot) -> None:
+    port = FakePort()
+    controller = ConnectionController(port_factory=lambda: port)
+
+    with qtbot.waitSignal(controller.connected, timeout=1_000):
+        controller.open(SerialSettings(port="COM10"))
+    with qtbot.waitSignal(controller.control_bytes_sent, timeout=1_000):
+        controller.send_control_bytes(b"\r")
+
+    assert port.writes == [(b"\r", False)]
+    controller.shutdown()
 
 
 def test_worker_runs_read_only_diagnostics_through_the_at_session(qtbot) -> None:

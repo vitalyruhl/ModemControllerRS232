@@ -33,18 +33,18 @@ class ConnectionPanel(QWidget):
         self.port_selector = QComboBox(self)
         self.port_selector.setObjectName("portSelector")
         self.port_selector.setEditable(False)
-        self.port_selector.addItem("Kein Port")
+        self.port_selector.addItem("No port")
 
-        self.status = QLabel("Getrennt", self)
+        self.status = QLabel("Disconnected", self)
         self.status.setObjectName("connectionStatus")
-        self.effective_settings = QLabel("Keine Verbindung", self)
+        self.effective_settings = QLabel("No connection", self)
 
-        self.connect_button = QPushButton("Verbinden", self)
-        self.disconnect_button = QPushButton("Trennen", self)
-        self.refresh_button = QPushButton("Aktualisieren", self)
-        self.find_button = QPushButton("Einstellungen suchen", self)
-        self.diagnostics_button = QPushButton("Diagnose starten", self)
-        self.cancel_button = QPushButton("Stopp", self)
+        self.connect_button = QPushButton("Connect", self)
+        self.disconnect_button = QPushButton("Disconnect", self)
+        self.refresh_button = QPushButton("Refresh", self)
+        self.find_button = QPushButton("Find settings", self)
+        self.diagnostics_button = QPushButton("Run diagnostics", self)
+        self.cancel_button = QPushButton("Stop", self)
         self.disconnect_button.setEnabled(False)
         self.diagnostics_button.setEnabled(False)
         self.cancel_button.setEnabled(False)
@@ -56,7 +56,7 @@ class ConnectionPanel(QWidget):
         self.diagnostics_button.clicked.connect(self.diagnostics_requested)
         self.cancel_button.clicked.connect(self.cancel_requested)
 
-        self.advanced = QGroupBox("Erweiterte Verbindung", self)
+        self.advanced = QGroupBox("Advanced connection", self)
         self.advanced.setCheckable(True)
         self.advanced.setChecked(False)
         advanced_layout = QFormLayout(self.advanced)
@@ -70,17 +70,19 @@ class ConnectionPanel(QWidget):
         self.stop_bits = QComboBox(self.advanced)
         self.stop_bits.addItems(["1", "2"])
         self.flow_control = QComboBox(self.advanced)
-        self.flow_control.addItems(["Kein", "RTS/CTS", "DSR/DTR"])
+        self.flow_control.addItems(["None", "RTS/CTS", "DSR/DTR"])
         self.deadline = QSpinBox(self.advanced)
         self.deadline.setRange(100, 60_000)
         self.deadline.setValue(2_000)
         self.deadline.setSuffix(" ms")
-        advanced_layout.addRow("Baudrate", self.baud_rate)
-        advanced_layout.addRow("Datenbits", self.data_bits)
-        advanced_layout.addRow("Parität", self.parity)
-        advanced_layout.addRow("Stoppbits", self.stop_bits)
-        advanced_layout.addRow("Flusssteuerung", self.flow_control)
-        advanced_layout.addRow("Antwortfrist", self.deadline)
+        advanced_layout.addRow("Baud rate", self.baud_rate)
+        advanced_layout.addRow("Data bits", self.data_bits)
+        advanced_layout.addRow("Parity", self.parity)
+        advanced_layout.addRow("Stop bits", self.stop_bits)
+        advanced_layout.addRow("Flow control", self.flow_control)
+        advanced_layout.addRow("Response timeout", self.deadline)
+        self.advanced.toggled.connect(self._set_advanced_visible)
+        self._set_advanced_visible(False)
 
         buttons = QHBoxLayout()
         for button in (
@@ -95,9 +97,9 @@ class ConnectionPanel(QWidget):
 
         layout = QVBoxLayout(self)
         form = QFormLayout()
-        form.addRow("COM-Port", self.port_selector)
+        form.addRow("COM port", self.port_selector)
         form.addRow("Status", self.status)
-        form.addRow("Aktiv", self.effective_settings)
+        form.addRow("Active", self.effective_settings)
         layout.addLayout(form)
         layout.addLayout(buttons)
         layout.addWidget(self.advanced)
@@ -105,23 +107,23 @@ class ConnectionPanel(QWidget):
     def set_ports(self, ports: list[str]) -> None:
         selected = self.port_selector.currentText()
         self.port_selector.clear()
-        self.port_selector.addItems(ports or ["Kein Port"])
+        self.port_selector.addItems(ports or ["No port"])
         if selected in ports:
             self.port_selector.setCurrentText(selected)
 
     def set_connected(self, connected: bool, settings: str = "") -> None:
-        self.status.setText("Verbunden" if connected else "Getrennt")
-        self.effective_settings.setText(settings or "Keine Verbindung")
+        self.status.setText("Connected" if connected else "Disconnected")
+        self.effective_settings.setText(settings or "No connection")
         self.connect_button.setEnabled(not connected)
         self.disconnect_button.setEnabled(connected)
         self.diagnostics_button.setEnabled(connected)
 
     def selected_settings(self) -> SerialSettings:
         port = self.port_selector.currentText()
-        if port == "Kein Port":
-            raise ValueError("Bitte zuerst einen COM-Port auswählen.")
+        if port == "No port":
+            raise ValueError("Select a COM port first.")
         flow_control = {
-            "Kein": FlowControl.NONE,
+            "None": FlowControl.NONE,
             "RTS/CTS": FlowControl.RTS_CTS,
             "DSR/DTR": FlowControl.DSR_DTR,
         }[self.flow_control.currentText()]
@@ -136,7 +138,7 @@ class ConnectionPanel(QWidget):
         )
 
     def set_connecting(self) -> None:
-        self.status.setText("Verbinden...")
+        self.status.setText("Connecting...")
         self.connect_button.setEnabled(False)
 
     def preferences(self) -> dict[str, str]:
@@ -152,7 +154,7 @@ class ConnectionPanel(QWidget):
 
     def apply_preferences(self, preferences: dict[str, str]) -> None:
         port = preferences.get("port", "")
-        if port and port != "Kein Port":
+        if port and port != "No port":
             if self.port_selector.findText(port) < 0:
                 self.port_selector.addItem(port)
             self.port_selector.setCurrentText(port)
@@ -179,7 +181,7 @@ class ConnectionPanel(QWidget):
                 "parity": settings.parity.value,
                 "stop_bits": f"{settings.stop_bits:g}",
                 "flow_control": {
-                    FlowControl.NONE: "Kein",
+                    FlowControl.NONE: "None",
                     FlowControl.RTS_CTS: "RTS/CTS",
                     FlowControl.DSR_DTR: "DSR/DTR",
                 }[settings.flow_control],
@@ -194,6 +196,16 @@ class ConnectionPanel(QWidget):
         )
 
     def show_error(self, message: str) -> None:
-        self.status.setText(f"Fehler: {message}")
+        self.status.setText(f"Error: {message}")
         self.connect_button.setEnabled(True)
         self.disconnect_button.setEnabled(False)
+
+    def _set_advanced_visible(self, visible: bool) -> None:
+        layout = self.advanced.layout()
+        if not isinstance(layout, QFormLayout):
+            return
+        for row in range(layout.rowCount()):
+            for role in (QFormLayout.LabelRole, QFormLayout.FieldRole):
+                item = layout.itemAt(row, role)
+                if item is not None and item.widget() is not None:
+                    item.widget().setVisible(visible)

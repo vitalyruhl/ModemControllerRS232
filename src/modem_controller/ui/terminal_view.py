@@ -32,6 +32,7 @@ class DisplayMode(str, Enum):
 class TerminalDirection(str, Enum):
     RECEIVED = "RX"
     TRANSMITTED = "TX"
+    INFORMATION = "INFO"
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +40,7 @@ class TerminalEntry:
     direction: TerminalDirection
     data: bytes
     sensitive: bool = False
+    force_hex: bool = False
 
 
 _SENSITIVE_COMMAND = re.compile(r"^AT\+(?:CPIN|CLCK|CPWD)\b", re.IGNORECASE)
@@ -82,14 +84,14 @@ class TerminalWorkspace(QWidget):
         self.terminator.addItems(_TERMINATORS)
         self.terminator.setCurrentText("CR")
 
-        self.send_button = QPushButton("Senden", self)
+        self.send_button = QPushButton("Send", self)
         self.send_button.clicked.connect(self.submit_text)
 
         self.hex_input = QLineEdit(self)
         self.hex_input.setObjectName("hexInput")
         self.hex_input.setPlaceholderText("41 54 0D")
         self.hex_input.returnPressed.connect(self.submit_hex)
-        self.hex_send_button = QPushButton("Hex senden", self)
+        self.hex_send_button = QPushButton("Send hex", self)
         self.hex_send_button.clicked.connect(self.submit_hex)
         self.validation_message = QLabel(self)
         self.validation_message.setObjectName("terminalValidation")
@@ -104,9 +106,9 @@ class TerminalWorkspace(QWidget):
         hex_layout.addWidget(self.hex_send_button)
 
         controls = QFormLayout()
-        controls.addRow("Anzeige", self.display_mode)
-        controls.addRow("Befehl", input_layout)
-        controls.addRow("Exakte Bytes", hex_layout)
+        controls.addRow("Display", self.display_mode)
+        controls.addRow("Command", input_layout)
+        controls.addRow("Exact bytes", hex_layout)
         controls.addRow("", self.validation_message)
 
         layout = QVBoxLayout(self)
@@ -138,8 +140,18 @@ class TerminalWorkspace(QWidget):
     def append_received(self, data: bytes) -> None:
         self._append(TerminalDirection.RECEIVED, data)
 
-    def append_transmitted(self, data: bytes, *, sensitive: bool = False) -> None:
-        self._append(TerminalDirection.TRANSMITTED, data, sensitive=sensitive)
+    def append_transmitted(
+        self, data: bytes, *, sensitive: bool = False, force_hex: bool = False
+    ) -> None:
+        self._append(
+            TerminalDirection.TRANSMITTED,
+            data,
+            sensitive=sensitive,
+            force_hex=force_hex,
+        )
+
+    def append_info(self, message: str) -> None:
+        self._append(TerminalDirection.INFORMATION, message.encode("utf-8"))
 
     def clear(self) -> None:
         self._entries.clear()
@@ -147,7 +159,7 @@ class TerminalWorkspace(QWidget):
 
     def submit_text(self) -> bool:
         if self._workflow_active:
-            self.validation_message.setText("Aktiver Ablauf belegt die Sitzung.")
+            self.validation_message.setText("An active workflow owns the session.")
             return False
         command = self.command_input.text()
         if not command:
@@ -165,7 +177,7 @@ class TerminalWorkspace(QWidget):
 
     def submit_hex(self) -> bool:
         if self._workflow_active:
-            self.validation_message.setText("Aktiver Ablauf belegt die Sitzung.")
+            self.validation_message.setText("An active workflow owns the session.")
             return False
         try:
             payload = self._parse_hex(self.hex_input.text())
@@ -189,7 +201,12 @@ class TerminalWorkspace(QWidget):
         """Resend raw bytes from the selected transcript line as text or exact bytes."""
 
         entry = self._selected_entry()
-        if entry is None or entry.sensitive or self._workflow_active:
+        if (
+            entry is None
+            or entry.sensitive
+            or entry.direction is TerminalDirection.INFORMATION
+            or self._workflow_active
+        ):
             return False
         command, terminator = self._as_text_command(entry.data)
         self.append_transmitted(entry.data)
@@ -203,16 +220,26 @@ class TerminalWorkspace(QWidget):
     def _parse_hex(value: str) -> bytes:
         compact = "".join(value.split())
         if not compact:
-            raise ValueError("Hex-Eingabe fehlt.")
+            raise ValueError("Hex input is required.")
         if len(compact) % 2 or re.fullmatch(r"[0-9A-Fa-f]+", compact) is None:
-            raise ValueError("Ungültige Hex-Eingabe.")
+            raise ValueError("Hex input is invalid.")
         return bytes.fromhex(compact)
 
     def _append(
-        self, direction: TerminalDirection, data: bytes, *, sensitive: bool = False
+        self,
+        direction: TerminalDirection,
+        data: bytes,
+        *,
+        sensitive: bool = False,
+        force_hex: bool = False,
     ) -> None:
         self._entries.append(
-            TerminalEntry(direction=direction, data=bytes(data), sensitive=sensitive)
+            TerminalEntry(
+                direction=direction,
+                data=bytes(data),
+                sensitive=sensitive,
+                force_hex=force_hex,
+            )
         )
         self._render()
 
@@ -229,10 +256,10 @@ class TerminalWorkspace(QWidget):
         mode = DisplayMode(self.display_mode.currentText())
         text = entry.data.decode("utf-8", errors="replace")
         hexadecimal = entry.data.hex(" ").upper()
-        if mode is DisplayMode.TEXT:
-            payload = text
-        elif mode is DisplayMode.HEX:
+        if entry.force_hex or mode is DisplayMode.HEX:
             payload = hexadecimal
+        elif mode is DisplayMode.TEXT:
+            payload = text
         else:
             payload = f"{text}  [{hexadecimal}]"
         return f"{entry.direction.value}  {payload}"
@@ -244,11 +271,13 @@ class TerminalWorkspace(QWidget):
     def _show_transcript_menu(self, position) -> None:
         menu: QMenu = self.transcript.createStandardContextMenu()
         menu.addSeparator()
-        copy_all = menu.addAction("Alles kopieren")
-        paste = menu.addAction("In Eingabe einfügen")
-        resend = menu.addAction("Zeile erneut senden")
+        copy_all = menu.addAction("Copy all")
+        paste = menu.addAction("Paste into input")
+        resend = menu.addAction("Send line again")
         resend.setEnabled(
-            self._selected_entry() is not None and not self._workflow_active
+            self._selected_entry() is not None
+            and self._selected_entry().direction is not TerminalDirection.INFORMATION
+            and not self._workflow_active
         )
         action = menu.exec(self.transcript.mapToGlobal(position))
         if action is copy_all:

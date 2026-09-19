@@ -39,6 +39,7 @@ class SerialConnectionWorker(QObject):
     connected = Signal(str)
     disconnected = Signal()
     received = Signal(bytes)
+    control_bytes_sent = Signal(bytes)
     error = Signal(str)
     diagnostics_completed = Signal(object)
     search_completed = Signal(object)
@@ -85,10 +86,18 @@ class SerialConnectionWorker(QObject):
 
     @Slot(bytes, bool)
     def send(self, payload: bytes, sensitive: bool) -> None:
+        self._write(payload, sensitive=sensitive)
+
+    @Slot(bytes)
+    def send_control_bytes(self, payload: bytes) -> None:
+        if self._write(payload, sensitive=False):
+            self.control_bytes_sent.emit(payload)
+
+    def _write(self, payload: bytes, *, sensitive: bool) -> bool:
         port = self._port
         if port is None or not port.is_open:
-            self.error.emit("Keine serielle Verbindung ist geöffnet.")
-            return
+            self.error.emit("No serial connection is open.")
+            return False
         try:
             if sensitive:
                 port.write_sensitive(payload)
@@ -97,6 +106,8 @@ class SerialConnectionWorker(QObject):
         except SerialPortError as error:
             self.error.emit(str(error))
             self.close()
+            return False
+        return True
 
     @Slot()
     def poll(self) -> None:
@@ -116,7 +127,7 @@ class SerialConnectionWorker(QObject):
     def run_diagnostics(self, profile: DeviceProfile) -> None:
         port = self._port
         if port is None or not port.is_open:
-            self.error.emit("Keine serielle Verbindung ist geöffnet.")
+            self.error.emit("No serial connection is open.")
             self.workflow_finished.emit()
             return
         self._cancel_requested.clear()
@@ -138,8 +149,7 @@ class SerialConnectionWorker(QObject):
     def search_settings(self, port_name: str) -> None:
         if self._port is not None and self._port.is_open:
             self.error.emit(
-                "Einstellungen können nur gesucht werden, wenn keine Verbindung "
-                "offen ist."
+                "Settings can only be searched while no connection is open."
             )
             self.workflow_finished.emit()
             return
@@ -156,7 +166,7 @@ class SerialConnectionWorker(QObject):
     def run_maintenance(self, command: CatalogCommand, values: dict[str, str]) -> None:
         port = self._port
         if port is None or not port.is_open:
-            self.error.emit("Keine serielle Verbindung ist geöffnet.")
+            self.error.emit("No serial connection is open.")
             self.workflow_finished.emit()
             return
         try:
@@ -178,7 +188,7 @@ class SerialConnectionWorker(QObject):
     def send_sms(self, recipient: str, body: str) -> None:
         port = self._port
         if port is None or not port.is_open:
-            self.error.emit("Keine serielle Verbindung ist geöffnet.")
+            self.error.emit("No serial connection is open.")
             self.workflow_finished.emit()
             return
         try:
@@ -212,7 +222,7 @@ class SerialConnectionWorker(QObject):
     def _run_sms_queries(self, payloads: tuple[bytes, ...]) -> None:
         port = self._port
         if port is None or not port.is_open:
-            self.error.emit("Keine serielle Verbindung ist geöffnet.")
+            self.error.emit("No serial connection is open.")
             self.workflow_finished.emit()
             return
         try:
@@ -285,6 +295,7 @@ class ConnectionController(QObject):
     connected = Signal(str)
     disconnected = Signal()
     received = Signal(bytes)
+    control_bytes_sent = Signal(bytes)
     error = Signal(str)
     diagnostics_completed = Signal(object)
     search_completed = Signal(object)
@@ -296,6 +307,7 @@ class ConnectionController(QObject):
     _open_requested = Signal(object)
     _close_requested = Signal()
     _send_requested = Signal(bytes, bool)
+    _control_bytes_requested = Signal(bytes)
     _diagnostics_requested = Signal(object)
     _search_requested = Signal(str)
     _maintenance_requested = Signal(object, object)
@@ -320,6 +332,9 @@ class ConnectionController(QObject):
         self._open_requested.connect(self._worker.open, Qt.QueuedConnection)
         self._close_requested.connect(self._worker.close, Qt.QueuedConnection)
         self._send_requested.connect(self._worker.send, Qt.QueuedConnection)
+        self._control_bytes_requested.connect(
+            self._worker.send_control_bytes, Qt.QueuedConnection
+        )
         self._diagnostics_requested.connect(
             self._worker.run_diagnostics, Qt.QueuedConnection
         )
@@ -337,6 +352,7 @@ class ConnectionController(QObject):
         self._worker.connected.connect(self._relay_connected)
         self._worker.disconnected.connect(self._relay_disconnected)
         self._worker.received.connect(self._relay_received)
+        self._worker.control_bytes_sent.connect(self.control_bytes_sent)
         self._worker.error.connect(self._relay_error)
         self._worker.diagnostics_completed.connect(self.diagnostics_completed)
         self._worker.search_completed.connect(self.search_completed)
@@ -354,6 +370,9 @@ class ConnectionController(QObject):
 
     def send(self, payload: bytes, *, sensitive: bool = False) -> None:
         self._send_requested.emit(payload, sensitive)
+
+    def send_control_bytes(self, payload: bytes) -> None:
+        self._control_bytes_requested.emit(payload)
 
     def run_diagnostics(self, profile: DeviceProfile) -> None:
         self._cancel_requested.clear()

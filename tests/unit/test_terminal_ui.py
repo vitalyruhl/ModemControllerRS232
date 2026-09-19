@@ -1,7 +1,10 @@
+from unittest.mock import patch
+
 from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtGui import QTextCursor
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 
+from modem_controller.ui.connection_panel import ConnectionPanel
 from modem_controller.ui.main_window import MainWindow
 from modem_controller.ui.terminal_view import TerminalDirection, TerminalWorkspace
 
@@ -47,7 +50,7 @@ def test_malformed_hex_is_rejected_without_a_send_intent(qtbot) -> None:
 
     assert not terminal.submit_hex()
     assert intents == []
-    assert "Ungültig" in terminal.validation_message.text()
+    assert "invalid" in terminal.validation_message.text()
 
 
 def test_terminal_bounds_history_and_pauses_autoscroll(qtbot) -> None:
@@ -130,10 +133,68 @@ def test_startup_and_refresh_enumerate_ports_without_connecting(qtbot) -> None:
     assert not window.connection_panel.disconnect_button.isEnabled()
 
 
+def test_advanced_connection_controls_are_hidden_until_checked(qtbot) -> None:
+    panel = ConnectionPanel()
+    qtbot.addWidget(panel)
+
+    assert panel.advanced.title() == "Advanced connection"
+    assert panel.baud_rate.isHidden()
+
+    panel.advanced.setChecked(True)
+
+    assert not panel.baud_rate.isHidden()
+
+
+def test_sms_is_a_separate_menu_dialog_and_terminal_accepts_info(qtbot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.command_group.title() == "Commands"
+    assert not window.sms_action.isEnabled()
+    assert not hasattr(window, "diagnostic_results")
+    window._connected("COM10 | 19200 Bd")
+    window.sms_action.trigger()
+    window.terminal.append_info("Diagnostics complete")
+
+    assert window.sms_dialog.isVisible()
+    assert window.sms_dialog.parent() is window
+    assert window.terminal.entries[-1].direction is TerminalDirection.INFORMATION
+    assert not window.terminal.resend_selected_line()
+
+
+def test_control_byte_presets_send_exact_bytes_after_confirmation(qtbot) -> None:
+    controller = FakeConnectionController()
+    window = MainWindow(connection_controller=controller)
+    qtbot.addWidget(window)
+    window._connected("COM10 | 19200 Bd")
+    window.category_selector.setCurrentText("Control bytes")
+
+    buttons = [
+        window.command_layout.itemAt(index).widget()
+        for index in range(window.command_layout.count())
+    ]
+
+    assert buttons
+    assert all(button.isEnabled() for button in buttons)
+    with patch(
+        "modem_controller.ui.main_window.QMessageBox.warning",
+        return_value=QMessageBox.Yes,
+    ):
+        buttons[0].click()
+    assert controller.sent == [(b"\r", False)]
+    assert "TX  0D" in window.terminal.transcript.toPlainText()
+    assert "Control byte send requested: 0D" in window.terminal.transcript.toPlainText()
+    assert (
+        "Control bytes written to serial port: 0D"
+        in window.terminal.transcript.toPlainText()
+    )
+
+
 class FakeConnectionController(QObject):
     connected = Signal(str)
     disconnected = Signal()
     received = Signal(bytes)
+    control_bytes_sent = Signal(bytes)
     error = Signal(str)
     diagnostics_completed = Signal(object)
     search_completed = Signal(object)
@@ -158,6 +219,10 @@ class FakeConnectionController(QObject):
 
     def send(self, payload: bytes, *, sensitive: bool = False) -> None:
         self.sent.append((payload, sensitive))
+
+    def send_control_bytes(self, payload: bytes) -> None:
+        self.sent.append((payload, False))
+        self.control_bytes_sent.emit(payload)
 
     def shutdown(self) -> None:
         self.close()

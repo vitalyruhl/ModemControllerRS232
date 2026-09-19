@@ -20,7 +20,7 @@ def test_window_restores_preferences_without_opening_a_connection(
     assert window.category_selector.currentText() == "Status"
     assert window.connection_panel.port_selector.currentText() == "COM10"
     assert window.connection_panel.baud_rate.currentText() == "19200"
-    assert window.connection_panel.status.text() == "Getrennt"
+    assert window.connection_panel.status.text() == "Disconnected"
 
 
 def test_window_saves_explicit_ui_preferences_on_close(qtbot, tmp_path) -> None:
