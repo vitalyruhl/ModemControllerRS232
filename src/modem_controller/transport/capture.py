@@ -52,6 +52,8 @@ class CaptureBuffer:
         self._stored_bytes = 0
         self._dropped_records = 0
         self._dropped_bytes = 0
+        self._sensitive_gaps = 0
+        self._sensitive_bytes = 0
 
     @property
     def dropped_records(self) -> int:
@@ -64,6 +66,14 @@ class CaptureBuffer:
     @property
     def stored_bytes(self) -> int:
         return self._stored_bytes
+
+    @property
+    def sensitive_gaps(self) -> int:
+        return self._sensitive_gaps
+
+    @property
+    def sensitive_bytes(self) -> int:
+        return self._sensitive_bytes
 
     def append(self, record: CaptureRecord) -> CaptureAppendResult:
         """Retain *record* only when doing so fits the declared limits."""
@@ -84,6 +94,14 @@ class CaptureBuffer:
         self._records.append(record)
         self._stored_bytes += record_size
         return CaptureAppendResult(accepted=True)
+
+    def record_sensitive_gap(self, byte_count: int) -> None:
+        """Record intentionally excluded sensitive bytes without retaining them."""
+
+        if byte_count <= 0:
+            raise ValueError("byte_count must be positive")
+        self._sensitive_gaps += 1
+        self._sensitive_bytes += byte_count
 
     def snapshot(self) -> tuple[CaptureRecord, ...]:
         return tuple(self._records)

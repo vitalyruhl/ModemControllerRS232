@@ -78,6 +78,7 @@ class SerialEventKind(str, Enum):
     CAPTURE_OVERFLOW = "capture_overflow"
     EVENT_OVERFLOW = "event_overflow"
     CANCELLED = "cancelled"
+    SENSITIVE_TRANSMISSION = "sensitive_transmission"
 
 
 @dataclass(frozen=True, slots=True)
@@ -333,6 +334,14 @@ class SerialPort:
             return data
 
     def write(self, data: bytes | bytearray | memoryview) -> int:
+        return self._write(data, sensitive=False)
+
+    def write_sensitive(self, data: bytes | bytearray | memoryview) -> int:
+        """Write sensitive bytes without retaining contents in capture or events."""
+
+        return self._write(data, sensitive=True)
+
+    def _write(self, data: bytes | bytearray | memoryview, *, sensitive: bool) -> int:
         if not isinstance(data, bytes | bytearray | memoryview):
             raise TypeError("data must be bytes-like")
         payload = bytes(data)
@@ -354,8 +363,15 @@ class SerialPort:
 
             if written:
                 accepted = payload[:written]
-                self._record(CaptureDirection.TRANSMITTED, accepted)
-                self._queue_event(SerialEventKind.TRANSMITTED, data=accepted)
+                if sensitive:
+                    self._capture.record_sensitive_gap(len(accepted))
+                    self._queue_event(
+                        SerialEventKind.SENSITIVE_TRANSMISSION,
+                        detail=f"excluded {len(accepted)} sensitive transmitted bytes",
+                    )
+                else:
+                    self._record(CaptureDirection.TRANSMITTED, accepted)
+                    self._queue_event(SerialEventKind.TRANSMITTED, data=accepted)
 
             if written != len(payload):
                 error = PartialWriteError(written, len(payload))

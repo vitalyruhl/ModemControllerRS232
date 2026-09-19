@@ -115,6 +115,23 @@ def test_write_preserves_exact_bytes_without_implicit_terminator(
     assert records[-1].data == payload
 
 
+def test_sensitive_write_keeps_bytes_out_of_capture_and_events() -> None:
+    backend = FakeSerialBackend()
+    port = make_port(backend)
+    open_port(port)
+
+    assert port.write_sensitive(b"secret message\x1a") == len(b"secret message\x1a")
+
+    assert backend.writes == [b"secret message\x1a"]
+    assert port.capture.snapshot() == ()
+    assert port.capture.sensitive_gaps == 1
+    assert port.capture.sensitive_bytes == len(b"secret message\x1a")
+    event = port.drain_events()[-1]
+    assert event.kind is SerialEventKind.SENSITIVE_TRANSMISSION
+    assert event.data == b""
+    assert "secret" not in event.detail
+
+
 def test_open_applies_control_line_and_flow_control_policy() -> None:
     backend = FakeSerialBackend()
     port = make_port(backend)

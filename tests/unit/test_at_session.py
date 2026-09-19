@@ -8,6 +8,8 @@ import pytest
 from modem_controller.protocol.at_session import (
     AtSession,
     ExchangeOutcome,
+    PromptAlreadySubmittedError,
+    PromptNotReceivedError,
     SessionBusyError,
     SessionDisconnectedError,
     SessionResynchronizationRequiredError,
@@ -165,3 +167,19 @@ def test_prompt_is_exposed_without_completing_the_exchange() -> None:
     assert session.poll() is None
     assert session.active_exchange is not None
     assert session.active_exchange.prompt_received
+
+
+def test_prompt_payload_is_sent_once_and_requires_a_received_prompt() -> None:
+    session, transport, _ = make_session()
+    session.start(b'AT+CMGS="123"\r', timeout=timedelta(seconds=2))
+
+    with pytest.raises(PromptNotReceivedError):
+        session.submit_prompt_payload(b"text\x1a")
+
+    transport.incoming.append(b"> ")
+    assert session.poll() is None
+    session.submit_prompt_payload(b"text\x1a")
+
+    with pytest.raises(PromptAlreadySubmittedError):
+        session.submit_prompt_payload(b"another\x1a")
+    assert transport.writes == [b'AT+CMGS="123"\r', b"text\x1a"]

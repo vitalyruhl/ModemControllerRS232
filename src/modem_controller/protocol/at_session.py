@@ -57,6 +57,14 @@ class SessionDisconnectedError(AtSessionError):
     """Raised when starting an exchange without a live serial connection."""
 
 
+class PromptNotReceivedError(AtSessionError):
+    """Raised when a prompt continuation is attempted before the modem prompt."""
+
+
+class PromptAlreadySubmittedError(AtSessionError):
+    """Raised when a prompt exchange would receive more than one continuation."""
+
+
 @dataclass(frozen=True, slots=True)
 class AtExchange:
     """Immutable evidence collected for a single scheduled command."""
@@ -83,6 +91,7 @@ class _PendingExchange:
     command_echoes: list[bytes] = field(default_factory=list)
     unsolicited: list[bytes] = field(default_factory=list)
     prompt_received: bool = False
+    prompt_payload_submitted: bool = False
 
     def snapshot(
         self,
@@ -146,7 +155,9 @@ class AtSession:
             return None
         return self._pending.snapshot()
 
-    def start(self, command: bytes, *, timeout: timedelta) -> AtExchange:
+    def start(
+        self, command: bytes, *, timeout: timedelta, sensitive: bool = False
+    ) -> AtExchange:
         """Write a command exactly once and claim exclusive ownership until it ends."""
 
         if not isinstance(command, bytes):
@@ -172,7 +183,7 @@ class AtSession:
             deadline_at=started_at + timeout.total_seconds(),
         )
         try:
-            written = self._transport.write(command)
+            written = self._write(command, sensitive=sensitive)
         except PortNotOpenError as error:
             self._state = SessionState.DISCONNECTED
             raise SessionDisconnectedError("serial transport disconnected") from error
@@ -181,6 +192,32 @@ class AtSession:
 
         self._pending = pending
         self._state = SessionState.AWAITING_RESPONSE
+        return pending.snapshot()
+
+    def submit_prompt_payload(
+        self, payload: bytes, *, sensitive: bool = False
+    ) -> AtExchange:
+        """Submit one exact payload after a received prompt without a terminator."""
+
+        if not payload:
+            raise ValueError("prompt payload must not be empty")
+        pending = self._pending
+        if self._state is not SessionState.AWAITING_RESPONSE or pending is None:
+            raise AtSessionError("there is no active prompt exchange")
+        if not pending.prompt_received:
+            raise PromptNotReceivedError("the modem prompt has not been received")
+        if pending.prompt_payload_submitted:
+            raise PromptAlreadySubmittedError(
+                "the prompt payload was already submitted"
+            )
+        try:
+            written = self._write(payload, sensitive=sensitive)
+        except PortNotOpenError as error:
+            self._state = SessionState.DISCONNECTED
+            raise SessionDisconnectedError("serial transport disconnected") from error
+        if written != len(payload):
+            raise AtSessionError("transport did not accept the complete prompt payload")
+        pending.prompt_payload_submitted = True
         return pending.snapshot()
 
     def poll(self) -> AtExchange | None:
@@ -317,3 +354,10 @@ class AtSession:
             return
         self._discarded_frames.extend(self._framer.feed(data))
         self._last_resynchronization_data_at = self._clock()
+
+    def _write(self, data: bytes, *, sensitive: bool) -> int:
+        if sensitive:
+            writer = getattr(self._transport, "write_sensitive", None)
+            if writer is not None:
+                return writer(data)
+        return self._transport.write(data)

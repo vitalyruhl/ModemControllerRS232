@@ -17,7 +17,7 @@ def test_framer_handles_split_and_merged_cr_lf_and_crlf_lines() -> None:
     ]
 
 
-def test_framer_emits_prompt_without_a_newline_and_preserves_invalid_bytes() -> None:
+def test_framer_emits_prompt_without_a_newline_and_skips_prompt_space() -> None:
     framer = AtFramer()
 
     frames = framer.feed(b"\r\n> \xff\r\n")
@@ -28,7 +28,7 @@ def test_framer_emits_prompt_without_a_newline_and_preserves_invalid_bytes() -> 
         FrameKind.LINE,
     ]
     assert frames[1].data == b">"
-    assert frames[2].data == b" \xff"
+    assert frames[2].data == b"\xff"
 
 
 def test_framer_rejects_non_bytes_input() -> None:

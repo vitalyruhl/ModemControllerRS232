@@ -26,6 +26,7 @@ class AtFramer:
     def __init__(self) -> None:
         self._pending = bytearray()
         self._at_line_start = True
+        self._skip_prompt_space = False
 
     @property
     def pending(self) -> bytes:
@@ -40,10 +41,18 @@ class AtFramer:
         frames: list[AtFrame] = []
 
         while self._pending:
+            if self._skip_prompt_space:
+                if self._pending[0] == ord(" "):
+                    del self._pending[0]
+                self._skip_prompt_space = False
+                if not self._pending:
+                    break
+
             if self._at_line_start and self._pending[0] == ord(">"):
                 del self._pending[0]
                 frames.append(AtFrame(kind=FrameKind.PROMPT, data=b">"))
-                self._at_line_start = False
+                self._at_line_start = True
+                self._skip_prompt_space = True
                 continue
 
             delimiter_index, delimiter_size = self._find_delimiter()
@@ -72,6 +81,7 @@ class AtFramer:
         pending = bytes(self._pending)
         self._pending.clear()
         self._at_line_start = True
+        self._skip_prompt_space = False
         return pending
 
     def _find_delimiter(self) -> tuple[int | None, int]:
