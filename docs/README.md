@@ -1,68 +1,45 @@
 # Documentation index
 
-- [Upgrade proposal](upgrade.md): agreed requirements, proposed behavior, technology
-  tradeoffs, implementation order, and future acceptance criteria.
+- [AT modem diagnosis reference](reference/at-commands.md): primary offline text
+  reference for queries, result interpretation, control bytes, SMS, profile notes
+  and historical initialization caveats.
 - [YAT evaluation template](../.Info/YAT/README.md): our MC/TC command pages and
   evaluation limits; the YAT application itself is not included.
-- [Legacy project description](legacy/README.md): original application background.
-- [AT command notes](Infos/AT-Befehle.txt) and
-  [initialization strings](Infos/Init-Strings.md): historical reference material
-  requiring model-specific review before reuse.
-- [Modem reference collection](<Infos/Modem auch GSM/>): manuals, troubleshooting
-  notes, and existing driver artifacts. These are reference files, not new
-  application dependencies or instructions to install drivers.
 - [Screenshots](images/): captures of the previous application.
+- [Project overview](../README.md): current scaffold state, architecture areas,
+  legacy application and distribution background.
 
-## Scaffold responsibilities
+Use the text reference first: it can be opened without a PDF viewer. PDFs below
+are supplementary device references, not duplicate quick-start documents. Their
+different model/version scope matters; filenames do not establish compatibility.
 
-All `.py` files are empty placeholders. The following describes intended ownership,
-not implemented behavior or fixed public interfaces.
+## Manufacturer references
 
-| Path under `src/modem_controller/` | Intended responsibility |
+| Source | Scope and limitations |
 | --- | --- |
-| `app.py` | Compose the application and connect the separate components. |
-| `ui/main_window.py` | Main window layout and connection status. |
-| `ui/terminal_view.py` | Text/hex presentation and input controls. |
-| `ui/connection_panel.py` | Simple and advanced connection settings. |
-| `ui/catalog_editor.py` | Command and profile editing interface. |
-| `transport/serial_port.py` | Single-owner serial access, exact-byte I/O, and control lines. |
-| `transport/capture.py` | Preserve raw sent/received data independently of display formatting. |
-| `protocol/framing.py` | Incremental response framing and prompts without newline termination. |
-| `protocol/at_session.py` | AT response state, deadlines, and unsolicited notifications. |
-| `catalog/models.py` | GUI-independent command and profile data. |
-| `catalog/storage.py` | Versioned catalog/profile persistence. |
-| `catalog/legacy_import.py` | Previewable imports of the archived XML/VCE formats. |
-| `workflows/connection_search.py` | Bounded, cancellable AT-only settings discovery. |
-| `workflows/diagnostics.py` | Profile-aware diagnostic sequences and results. |
+| [TC35/TC37 AT manual, version 04.00](reference/modems/tc35/tc3x_atc_01_v0400.pdf) | Legacy command reference, not proof of modern LTE/modem support. |
+| [TC35i hardware description](reference/modems/tc35/tc35i_t_hd_v0301n.pdf) | Terminal hardware, serial interface and control signals. |
+| [Supplementary TC35 document](reference/modems/tc35/1114471.pdf) | Text extraction was unreliable; visually review before relying on it. |
+| [TC35i incoming-call incident attachment](reference/modems/tc35i-incoming-calls/gsm-caller-id.pdf) | Image-based supplementary evidence; the text reference records the known caveats. |
+| [MC88 developer guide](reference/modems/MC88/m2mdev_M2M_Developer_Guide_4551.pdf) | Device context and example investigations; some examples change settings. |
+| [Cellular terminal flyer](reference/modems/MC88/flyer_cellulare.pdf) | Product/module context, not an AT command specification. |
+| [MC88 terminal flyer](reference/modems/MC88/MC88_Term_fl.pdf) | Prior local extraction reported no pages; not verified as usable evidence. |
+| [ELSA MicroLink Office AT manual](reference/modems/elsa-microlink-at-commands.pdf) | Analog/Hayes reference, not a cellular command catalog. |
 
-Package directories also contain empty `__init__.py` files. No executable entry
-point or serial-port side effects are introduced by this scaffold.
+Historical [MC88 USB modem INF](reference/modems/MC88/usbmodem.inf) and
+[USB/RS232 driver artifacts](reference/modems/usb-rs232-drivers/) are retained as
+references only. They are not runtime dependencies, Windows 10 compatibility
+evidence, or instructions to install drivers automatically.
 
-## Reserved validation and tooling areas
+## Source consolidation
 
-- `tests/unit/`: future byte handling, framing, catalog, and workflow checks.
-- `tests/integration/`: future simulated transport and component integration checks.
-- `tests/fixtures/`: future synthetic or reviewed, sanitized response samples.
-- `tools/`: future development and packaging utilities.
+The former AT command list, MC55i-Q/W initialization notes (2023-02-03), and
+TC35i incoming-call note (2020-11-23) are consolidated into the text reference.
+Examples containing personal values are omitted; ambiguous spellings and device
+assumptions are flagged instead of silently converted into working commands.
+Original documents remain available in repository history. Distinct manufacturer
+manuals remain alongside the concise text, without duplicating entire manuals.
 
-These directories contain only `.gitkeep` placeholders. No test suite exists yet;
-an empty test directory must not be reported as passing application tests.
-Real-device checks and Windows compatibility checks remain separate from unit
-and simulator evidence.
+The Python source and test directories remain placeholders; this documentation
+does not establish passing software, packaging, Windows or real-device tests.
 
-## Migration map
-
-| Previous location | Current location |
-| --- | --- |
-| `MC-Sourcecode/` | `.Old_Version/MC-Sourcecode/` |
-| `ModemController_V1.0.1/` | `.Old_Version/ModemController_V1.0.1/` |
-| `ModemController_V1.5.0.10/` | `.Old_Version/ModemController_V1.5.0.10/` |
-| `ModemController_V1.5.0.10.7z` | `.Old_Version/ModemController_V1.5.0.10.7z` |
-| `Infos/` | `docs/Infos/` |
-| `Screenshot_2.jpg`, `Screenshot_3.jpg` | `docs/images/` |
-| `README.md` | `docs/legacy/README.md`; new orientation README at the root |
-| `upgrade.md` | `docs/upgrade.md` |
-
-Git metadata, the license, shared agent configuration, and repository-wide
-configuration remain at the root. Existing reference filenames and legacy source
-contents are preserved; documentation links and current-path references are updated.

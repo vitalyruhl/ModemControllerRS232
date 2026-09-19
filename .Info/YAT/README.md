@@ -14,7 +14,9 @@ The local downloaded application remains under ignored `.Temp/`.
 | MC-TC Setup - changes settings | Six individual configuration commands for registration reporting, caller ID, extended ring, SMS mode, notifications, and storage. |
 
 Setup commands come from the repository's MC55i-Q/MC55i-W initialization notes
-and legacy TC35i material. This is not a verified MC93/TC55i device profile.
+and legacy TC35i material, now consolidated in the
+[AT reference](../../docs/reference/at-commands.md). This is not a verified
+MC93/TC55i device profile.
 Vendor-specific routing, resets, factory defaults, save-to-flash commands, and
 automatic initialization sequences are omitted.
 
@@ -45,4 +47,4 @@ but found the overall interface too busy and the separate receive/input areas
 unsuitable. Preset and path persistence were also points of friction in the
 trial. Our application will adopt selected interaction ideas while providing
 integrated terminal input and persistent settings. See the
-[upgrade proposal](../../docs/upgrade.md) for the agreed requirements.
+[project overview](../../README.md) for the current project scope.
