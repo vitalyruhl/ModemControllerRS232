@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import QApplication
 
@@ -128,3 +128,51 @@ def test_startup_and_refresh_enumerate_ports_without_connecting(qtbot) -> None:
 
     assert window.connection_panel.port_selector.count() == 2
     assert not window.connection_panel.disconnect_button.isEnabled()
+
+
+class FakeConnectionController(QObject):
+    connected = Signal(str)
+    disconnected = Signal()
+    received = Signal(bytes)
+    error = Signal(str)
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.opened = []
+        self.sent: list[tuple[bytes, bool]] = []
+        self.closed = False
+
+    def open(self, settings) -> None:
+        self.opened.append(settings)
+        self.connected.emit(f"{settings.port} | {settings.baud_rate} Bd")
+
+    def close(self) -> None:
+        self.closed = True
+        self.disconnected.emit()
+
+    def send(self, payload: bytes, *, sensitive: bool = False) -> None:
+        self.sent.append((payload, sensitive))
+
+    def shutdown(self) -> None:
+        self.close()
+
+
+def test_connection_and_terminal_intents_are_forwarded_to_controller(qtbot) -> None:
+    controller = FakeConnectionController()
+    window = MainWindow(
+        port_provider=lambda: ["COM10"], connection_controller=controller
+    )
+    qtbot.addWidget(window)
+    window.connection_panel.baud_rate.setCurrentText("19200")
+
+    window.connection_panel.connect_button.click()
+    window.terminal.command_input.setText("AT")
+    assert window.terminal.submit_text()
+    controller.received.emit(b"\r\nOK\r\n")
+    window.connection_panel.disconnect_button.click()
+
+    assert controller.opened[0].port == "COM10"
+    assert controller.opened[0].baud_rate == 19200
+    assert controller.sent == [(b"AT\r", False)]
+    assert any(entry.data == b"\r\nOK\r\n" for entry in window.terminal.entries)
+    assert controller.closed

@@ -121,6 +121,10 @@ class TerminalWorkspace(QWidget):
     def is_auto_scroll_paused(self) -> bool:
         return not self._auto_scroll
 
+    @property
+    def selected_terminator(self) -> bytes:
+        return _TERMINATORS[self.terminator.currentText()]
+
     def set_workflow_active(self, active: bool) -> None:
         self._workflow_active = active
         self.command_input.setEnabled(not active)
@@ -148,7 +152,7 @@ class TerminalWorkspace(QWidget):
         command = self.command_input.text()
         if not command:
             return False
-        terminator = _TERMINATORS[self.terminator.currentText()]
+        terminator = self.selected_terminator
         sensitive = bool(_SENSITIVE_COMMAND.match(command))
         self.append_transmitted(
             command.encode("ascii", errors="replace") + terminator, sensitive=sensitive

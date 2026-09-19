@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from PySide6.QtCore import Signal
+from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import (
     QComboBox,
     QGridLayout,
@@ -20,9 +21,12 @@ from PySide6.QtWidgets import (
 from modem_controller.catalog.models import (
     CatalogCommand,
     CommandCatalog,
+    CommandKind,
+    RiskLevel,
     load_starter_catalog,
 )
 from modem_controller.transport.serial_port import available_ports
+from modem_controller.ui.connection_controller import ConnectionController
 from modem_controller.ui.connection_panel import ConnectionPanel
 from modem_controller.ui.terminal_view import TerminalWorkspace
 
@@ -39,10 +43,12 @@ class MainWindow(QMainWindow):
         catalog: CommandCatalog | None = None,
         *,
         port_provider: Callable[[], list[str]] = available_ports,
+        connection_controller: ConnectionController | None = None,
     ) -> None:
         super().__init__()
         self._catalog = catalog or load_starter_catalog()
         self._port_provider = port_provider
+        self._connection_controller = connection_controller
         self._workflow_active = False
         self._preset_execution_enabled = False
         self.setWindowTitle("Modem Controller")
@@ -66,8 +72,12 @@ class MainWindow(QMainWindow):
         self.profile_selector.currentIndexChanged.connect(self._change_profile)
         self.category_selector.currentTextChanged.connect(self._render_commands)
         self.connection_panel.refresh_requested.connect(self.refresh_ports)
-        self.terminal.text_submitted.connect(self.text_send_requested)
-        self.terminal.bytes_submitted.connect(self.bytes_send_requested)
+        self.connection_panel.connect_requested.connect(self._connect)
+        self.connection_panel.disconnect_requested.connect(self._disconnect)
+        self.terminal.text_submitted.connect(self._send_text)
+        self.terminal.bytes_submitted.connect(self._send_bytes)
+        if self._connection_controller is not None:
+            self._bind_connection_controller(self._connection_controller)
 
         sidebar = QWidget(self)
         sidebar_layout = QVBoxLayout(sidebar)
@@ -135,7 +145,9 @@ class MainWindow(QMainWindow):
             button = QPushButton(command.label, self.command_group)
             button.setToolTip(command.help_text)
             button.setEnabled(
-                self._preset_execution_enabled and not self._workflow_active
+                self._preset_execution_enabled
+                and not self._workflow_active
+                and command.risk is RiskLevel.READ_ONLY
             )
             button.clicked.connect(
                 lambda checked=False, selected=command: self._request_preset(selected)
@@ -143,8 +155,64 @@ class MainWindow(QMainWindow):
             self.command_layout.addWidget(button, index // 2, index % 2)
 
     def _request_preset(self, command: CatalogCommand) -> None:
-        if self._preset_execution_enabled and not self._workflow_active:
+        if (
+            self._preset_execution_enabled
+            and not self._workflow_active
+            and command.risk is RiskLevel.READ_ONLY
+        ):
+            payload = command.render()
+            if command.kind is CommandKind.AT:
+                payload += self.terminal.selected_terminator
+            self.terminal.append_transmitted(payload)
             self.preset_requested.emit(command)
+            self._controller().send(payload)
+
+    def _connect(self) -> None:
+        try:
+            settings = self.connection_panel.selected_settings()
+        except ValueError as error:
+            self.connection_panel.show_error(str(error))
+            return
+        self.connection_panel.set_connecting()
+        self._controller().open(settings)
+
+    def _disconnect(self) -> None:
+        if self._connection_controller is not None:
+            self._connection_controller.close()
+
+    def _send_text(self, command: str, terminator: bytes, sensitive: bool) -> None:
+        self.text_send_requested.emit(command, terminator, sensitive)
+        payload = command.encode("ascii", errors="replace") + terminator
+        self._controller().send(payload, sensitive=sensitive)
+
+    def _send_bytes(self, payload: bytes) -> None:
+        self.bytes_send_requested.emit(payload)
+        self._controller().send(payload)
+
+    def _controller(self) -> ConnectionController:
+        if self._connection_controller is None:
+            self._connection_controller = ConnectionController(parent=self)
+            self._bind_connection_controller(self._connection_controller)
+        return self._connection_controller
+
+    def _bind_connection_controller(self, controller: ConnectionController) -> None:
+        controller.connected.connect(self._connected)
+        controller.disconnected.connect(self._disconnected)
+        controller.received.connect(self.terminal.append_received)
+        controller.error.connect(self.connection_panel.show_error)
+
+    def _connected(self, settings: str) -> None:
+        self.connection_panel.set_connected(True, settings)
+        self.set_preset_execution_enabled(True)
+
+    def _disconnected(self) -> None:
+        self.connection_panel.set_connected(False)
+        self.set_preset_execution_enabled(False)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        if self._connection_controller is not None:
+            self._connection_controller.shutdown()
+        super().closeEvent(event)
 
     def _selected_profile(self):
         return self._catalog.profile(self.profile_selector.currentData())

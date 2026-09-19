@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from modem_controller.transport.serial_port import FlowControl, Parity, SerialSettings
+
 
 class ConnectionPanel(QWidget):
     """Presents connection state and settings; an application controller owns I/O."""
@@ -107,6 +109,29 @@ class ConnectionPanel(QWidget):
         self.effective_settings.setText(settings or "Keine Verbindung")
         self.connect_button.setEnabled(not connected)
         self.disconnect_button.setEnabled(connected)
+
+    def selected_settings(self) -> SerialSettings:
+        port = self.port_selector.currentText()
+        if port == "Kein Port":
+            raise ValueError("Bitte zuerst einen COM-Port auswählen.")
+        flow_control = {
+            "Kein": FlowControl.NONE,
+            "RTS/CTS": FlowControl.RTS_CTS,
+            "DSR/DTR": FlowControl.DSR_DTR,
+        }[self.flow_control.currentText()]
+        return SerialSettings(
+            port=port,
+            baud_rate=int(self.baud_rate.currentText()),
+            data_bits=int(self.data_bits.currentText()),
+            parity=Parity(self.parity.currentText()),
+            stop_bits=float(self.stop_bits.currentText()),
+            flow_control=flow_control,
+            write_timeout=self.deadline.value() / 1_000,
+        )
+
+    def set_connecting(self) -> None:
+        self.status.setText("Verbinden...")
+        self.connect_button.setEnabled(False)
 
     def set_workflow_active(self, active: bool) -> None:
         self.cancel_button.setEnabled(active)
